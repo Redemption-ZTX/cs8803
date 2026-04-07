@@ -1,0 +1,29 @@
+Failure # 1 (occurred at 2026-03-31_02-46-03)
+Traceback (most recent call last):
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/trial_runner.py", line 933, in _process_trial_restore
+    self.trial_executor.fetch_result(trial)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/ray_trial_executor.py", line 688, in fetch_result
+    result = ray.get(trial_future[0], timeout=DEFAULT_GET_TIMEOUT)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/_private/client_mode_hook.py", line 62, in wrapper
+    return func(*args, **kwargs)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/worker.py", line 1494, in get
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(TypeError): [36mray::PPO.restore_from_object()[39m (pid=3974993, ip=172.27.150.105)
+  File "python/ray/_raylet.pyx", line 501, in ray._raylet.execute_task
+  File "python/ray/_raylet.pyx", line 451, in ray._raylet.execute_task.function_executor
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/_private/function_manager.py", line 563, in actor_method_executor
+    return method(__ray_actor, *args, **kwargs)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/trainable.py", line 394, in restore_from_object
+    self.restore(checkpoint_path)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/trainable.py", line 372, in restore
+    self.load_checkpoint(checkpoint_path)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 763, in load_checkpoint
+    self.__setstate__(extra_data)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer_template.py", line 223, in __setstate__
+    Trainer.__setstate__(self, state)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 1390, in __setstate__
+    self.workers.local_worker().restore(state["worker"])
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/evaluation/rollout_worker.py", line 1096, in restore
+    objs = pickle.loads(objs)
+TypeError: a bytes-like object is required, not 'dict'
+

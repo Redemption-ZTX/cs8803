@@ -1,0 +1,31 @@
+Failure # 1 (occurred at 2026-03-31_12-04-05)
+Traceback (most recent call last):
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/trial_runner.py", line 718, in _process_trial
+    results = self.trial_executor.fetch_result(trial)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/ray_trial_executor.py", line 688, in fetch_result
+    result = ray.get(trial_future[0], timeout=DEFAULT_GET_TIMEOUT)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/_private/client_mode_hook.py", line 62, in wrapper
+    return func(*args, **kwargs)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/worker.py", line 1494, in get
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(TypeError): [36mray::PPO.train_buffered()[39m (pid=2819519, ip=172.27.150.88)
+  File "python/ray/_raylet.pyx", line 501, in ray._raylet.execute_task
+  File "python/ray/_raylet.pyx", line 451, in ray._raylet.execute_task.function_executor
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/_private/function_manager.py", line 563, in actor_method_executor
+    return method(__ray_actor, *args, **kwargs)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/trainable.py", line 173, in train_buffered
+    result = self.train()
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 608, in train
+    raise e
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 594, in train
+    result = Trainable.train(self)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/trainable.py", line 294, in train
+    self.log_result(result)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 630, in log_result
+    self.callbacks.on_train_result(trainer=self, result=result)
+  File "train_ray_team_vs_random_shaping.py", line 326, in on_train_result
+    act = self._coerce_to_discrete_action(act, action_lookup)
+  File "train_ray_team_vs_random_shaping.py", line 255, in _coerce_to_discrete_action
+    flat.append(int(x))
+TypeError: int() argument must be a string, a bytes-like object or a number, not 'dict'
+

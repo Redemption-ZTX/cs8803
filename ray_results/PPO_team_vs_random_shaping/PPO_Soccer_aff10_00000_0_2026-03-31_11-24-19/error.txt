@@ -1,0 +1,53 @@
+Failure # 1 (occurred at 2026-03-31_11-25-18)
+Traceback (most recent call last):
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/trial_runner.py", line 718, in _process_trial
+    results = self.trial_executor.fetch_result(trial)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/ray_trial_executor.py", line 688, in fetch_result
+    result = ray.get(trial_future[0], timeout=DEFAULT_GET_TIMEOUT)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/_private/client_mode_hook.py", line 62, in wrapper
+    return func(*args, **kwargs)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/worker.py", line 1494, in get
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(TypeError): [36mray::PPO.train_buffered()[39m (pid=2782950, ip=172.27.150.88)
+  File "python/ray/_raylet.pyx", line 501, in ray._raylet.execute_task
+  File "python/ray/_raylet.pyx", line 451, in ray._raylet.execute_task.function_executor
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/_private/function_manager.py", line 563, in actor_method_executor
+    return method(__ray_actor, *args, **kwargs)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/trainable.py", line 173, in train_buffered
+    result = self.train()
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 608, in train
+    raise e
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 594, in train
+    result = Trainable.train(self)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/trainable.py", line 232, in train
+    result = self.step()
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer_template.py", line 186, in step
+    evaluation_metrics = eval_future.result()
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/concurrent/futures/_base.py", line 444, in result
+    return self.__get_result()
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/concurrent/futures/_base.py", line 389, in __get_result
+    raise self._exception
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/concurrent/futures/thread.py", line 57, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 824, in evaluate
+    self._sync_weights_to_workers(worker_set=self.evaluation_workers)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 904, in _sync_weights_to_workers
+    worker_set.foreach_worker(lambda w: w.restore(ray.get(weights)))
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/evaluation/worker_set.py", line 162, in foreach_worker
+    local_result = [func(self.local_worker())]
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 904, in <lambda>
+    worker_set.foreach_worker(lambda w: w.restore(ray.get(weights)))
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/evaluation/rollout_worker.py", line 1099, in restore
+    self.policy_map[pid].set_state(state)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/policy/torch_policy.py", line 612, in set_state
+    optim_state_dict = convert_to_torch_tensor(
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/utils/torch_ops.py", line 113, in convert_to_torch_tensor
+    return tree.map_structure(mapping, x)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/tree/__init__.py", line 510, in map_structure
+    [func(*args) for args in zip(*map(flatten, structures))])
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/tree/__init__.py", line 510, in <listcomp>
+    [func(*args) for args in zip(*map(flatten, structures))])
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/utils/torch_ops.py", line 107, in mapping
+    tensor = torch.from_numpy(np.asarray(item))
+TypeError: can't convert np.ndarray of type numpy.object_. The only supported types are: float64, float32, float16, complex64, complex128, int64, int32, int16, int8, uint8, and bool.
+

@@ -1,0 +1,21 @@
+Failure # 1 (occurred at 2026-03-31_02-40-20)
+Traceback (most recent call last):
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/trial_runner.py", line 933, in _process_trial_restore
+    self.trial_executor.fetch_result(trial)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/ray_trial_executor.py", line 688, in fetch_result
+    result = ray.get(trial_future[0], timeout=DEFAULT_GET_TIMEOUT)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/_private/client_mode_hook.py", line 62, in wrapper
+    return func(*args, **kwargs)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/worker.py", line 1494, in get
+    raise value.as_instanceof_cause()
+ray.exceptions.RayTaskError(FileNotFoundError): [36mray::PPO.restore_from_object()[39m (pid=3971387, ip=172.27.150.105)
+  File "python/ray/_raylet.pyx", line 501, in ray._raylet.execute_task
+  File "python/ray/_raylet.pyx", line 451, in ray._raylet.execute_task.function_executor
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/_private/function_manager.py", line 563, in actor_method_executor
+    return method(__ray_actor, *args, **kwargs)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/trainable.py", line 394, in restore_from_object
+    self.restore(checkpoint_path)
+  File "/home/hice1/tzhao353/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/trainable.py", line 358, in restore
+    with open(checkpoint_path + ".tune_metadata", "rb") as f:
+FileNotFoundError: [Errno 2] No such file or directory: '/home/hice1/tzhao353/soccer-twos-starter/ray_results/PPO_team_vs_mix_baseline90_random10_cont/PPO_Soccer_5dcc0_00000_0_2026-03-31_02-39-28/tmpks073iltrestore_from_object/checkpoint-121-sanitized.tune_metadata'
+
