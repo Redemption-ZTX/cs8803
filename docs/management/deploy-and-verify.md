@@ -6,32 +6,49 @@
 
 本文档覆盖：从 git clone 到确认环境可用、验证现有 checkpoint、确认 reward shaping 是否生效的完整流程。
 
+> **PACE 相关规则来自 [作业 SSOT](../references/Final%20Project%20Instructions%20Document.md#pace-documentation)**，必须遵守。
+
 ---
 
 ## Step 1: 部署环境
 
 ### 1.1 PACE 集群
 
+**PACE 强制规则（来自作业文档）：**
+- 所有文件放 `$SCRATCH`，**不要放 home**（15GB 限制，满了会锁死账号）
+- **不要在登录节点跑训练**，必须用 `sbatch` 提交 SLURM 作业
+- **不要联系 PACE support**，课程不提供直接学生支持
+- **尽早开始训练**，DDL 前 GPU 排队很长
+- 文件传输可用 [Open OnDemand](https://gatech.service-now.com/home?id=kb_article_view&sysparm_article=KB0042133)（网页界面，比 scp 方便）
+- 参考 [Slurm 指南](https://mshalimay.github.io/slurm_pace_guidelines/) 和 [PACE-ICE 文档](https://gatech.service-now.com/home?id=kb_article_view&sysparm_article=KB0042102)
+
 ```bash
-# 连接（先开 GT VPN）
+# 1. 连 GT VPN（GlobalProtect）
+# 2. SSH 登录
 ssh YOUR_GT_USERNAME@login-ice.pace.gatech.edu
 
-# 建议在 scratch 目录操作（home 只有 15GB）
+# 3. 切换到 scratch（重要！不要在 home 操作）
 cd $SCRATCH
 
-# 克隆仓库
+# 4. 克隆仓库
 git clone https://github.com/Redemption-ZTX/cs8803.git
 cd cs8803
 
-# 一键安装
+# 5. 安装 conda（如果 scratch 下没有）
+#    建议装 miniconda 到 $SCRATCH/miniconda3
+#    下载: wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+#    安装: bash Miniconda3-latest-Linux-x86_64.sh -b -p $SCRATCH/miniconda3
+#    激活: source $SCRATCH/miniconda3/etc/profile.d/conda.sh
+
+# 6. 一键安装项目环境
 bash scripts/setup.sh
 ```
 
-如果 conda 不在默认路径，先 source：
-```bash
-source ~/miniconda3/etc/profile.d/conda.sh
-# 或者按 PACE 文档加载 module
-```
+**PACE 已知问题（来自作业文档）：**
+- 高延迟可能断连 — 用 `tmux` 或 `screen` 保持会话
+- 不同节点的软件版本可能不同 — 遇到问题换节点试试
+- macOS 连 VPN 可能有问题 — 见 [排查指南](https://gatech.service-now.com/home?id=kb_article_view&sysparm_article=KB0043475)
+- "unknown server certificate error" — 强退 GlobalProtect 重开
 
 ### 1.2 本地（Windows/macOS/Linux）
 
@@ -83,16 +100,18 @@ python eval_rllib_checkpoint_vs_baseline.py -c "$CKPT" -n 50
 ### 2.2 用 evaluate_matches.py 评估（通过 agent 模块）
 
 ```bash
-# 先把 checkpoint 放到 agent_performance 目录
-cp "$CKPT" agent_performance/checkpoint
-# params.pkl 也需要
-cp "$(dirname $CKPT)/../params.pkl" agent_performance/params.pkl
+# 从模板创建一个测试 agent
+cp -r agents/_template agents/v000_prior_checkpoint
+
+# 放入 checkpoint 和 params.pkl
+cp "$CKPT" agents/v000_prior_checkpoint/checkpoint
+cp "$(dirname $CKPT)/../params.pkl" agents/v000_prior_checkpoint/params.pkl
 
 # 对战基线
-python evaluate_matches.py -m1 agent_performance -m2 ceia_baseline_agent -n 10
+python evaluate_matches.py -m1 agents.v000_prior_checkpoint -m2 ceia_baseline_agent -n 10
 
 # 对战随机
-python evaluate_matches.py -m1 agent_performance -m2 example_player_agent -n 10
+python evaluate_matches.py -m1 agents.v000_prior_checkpoint -m2 example_player_agent -n 10
 ```
 
 ### 2.3 需要记录的指标

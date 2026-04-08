@@ -24,6 +24,7 @@
 - Rewrote the root `README.md` and `docs/README.md` to reflect the current CS8803 project structure and workflows.
 - Updated training and evaluation scripts to reuse shared checkpoint-loading utilities instead of duplicating restore logic.
 - Refreshed the PACE batch script and `.gitignore` to better support reproducible experiments and keep generated artifacts out of git.
+- Clarified assignment SSOT, PACE cluster rules, deployment steps, and project priorities in `CLAUDE.md`, `docs/management/ROADMAP.md`, and `docs/management/deploy-and-verify.md`.
 
 ### Removed
 - Deleted tracked `ray_results/` artifacts and the root-level `ceia_baseline_agent.zip` archive from version control.
