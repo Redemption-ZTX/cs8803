@@ -1,5 +1,4 @@
 import os
-import pickle
 import sys
 import numpy as np
 import gym
@@ -17,90 +16,10 @@ from soccer_twos import EnvType
 from ray.rllib.agents.callbacks import DefaultCallbacks
 
 from utils import create_rllib_env
+from checkpoint_utils import sanitize_checkpoint_for_restore
 
 
 NUM_ENVS_PER_WORKER = 1
-
-
-def _unpickle_if_bytes(obj, *, max_depth: int = 3):
-    cur = obj
-    for _ in range(max_depth):
-        if isinstance(cur, (bytes, bytearray)):
-            cur = pickle.loads(cur)
-            continue
-        break
-    return cur
-
-
-def _strip_optimizer_state(obj):
-    if isinstance(obj, np.ndarray) and obj.dtype == object:
-        return np.asarray([], dtype=np.float32)
-    if isinstance(obj, dict):
-        out = {}
-        for k, v in obj.items():
-            if k in {
-                "optimizer_variables",
-                "optimizer_state",
-                "optim_state",
-                "_optimizer_variables",
-            }:
-                out[k] = []
-            else:
-                out[k] = _strip_optimizer_state(v)
-        return out
-    if isinstance(obj, (list, tuple)):
-        return type(obj)(_strip_optimizer_state(v) for v in obj)
-    return obj
-
-
-def _sanitize_checkpoint_for_restore(checkpoint_path: str) -> str:
-    # Only handles RLlib's pickle-based checkpoints (ray 1.x).
-    base = os.path.basename(checkpoint_path)
-    sanitized_path = os.path.join(
-        os.path.dirname(checkpoint_path),
-        f"{base}-sanitized",
-    )
-    # Ray Tune also expects a sidecar metadata file.
-    meta_src = checkpoint_path + ".tune_metadata"
-    meta_dst = sanitized_path + ".tune_metadata"
-    if os.path.exists(sanitized_path):
-        try:
-            with open(sanitized_path, "rb") as f:
-                existing = pickle.load(f)
-            existing = _unpickle_if_bytes(existing, max_depth=2)
-            ok = not (isinstance(existing, dict) and "worker" in existing and not isinstance(existing["worker"], (bytes, bytearray)))
-        except Exception:
-            ok = False
-
-        if ok:
-            if os.path.exists(meta_src) and not os.path.exists(meta_dst):
-                import shutil
-
-                shutil.copyfile(meta_src, meta_dst)
-            return sanitized_path
-
-    with open(checkpoint_path, "rb") as f:
-        state = pickle.load(f)
-
-    state = _unpickle_if_bytes(state, max_depth=4)
-
-    if isinstance(state, dict) and "worker" in state:
-        worker = _unpickle_if_bytes(state.get("worker"), max_depth=6)
-        worker = _strip_optimizer_state(worker)
-        # RLlib restore expects the worker state to still be pickled bytes.
-        state["worker"] = pickle.dumps(worker)
-    else:
-        state = _strip_optimizer_state(state)
-
-    with open(sanitized_path, "wb") as f:
-        pickle.dump(state, f)
-
-    if os.path.exists(meta_src) and not os.path.exists(meta_dst):
-        import shutil
-
-        shutil.copyfile(meta_src, meta_dst)
-
-    return sanitized_path
 
 
 class BaselineEvalCallbacks(DefaultCallbacks):
@@ -394,7 +313,7 @@ if __name__ == "__main__":
 
     restore_path = os.environ.get("RESTORE_CHECKPOINT", "").strip() or None
     if restore_path:
-        restore_path = _sanitize_checkpoint_for_restore(restore_path)
+        restore_path = sanitize_checkpoint_for_restore(restore_path)
     timesteps_total = int(os.environ.get("TIMESTEPS_TOTAL", "15000000"))
     time_total_s = int(os.environ.get("TIME_TOTAL_S", "7200"))
     run_name = os.environ.get("RUN_NAME", "PPO_team_vs_random_shaping")

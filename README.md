@@ -1,77 +1,75 @@
-# Soccer-Twos Starter Kit
+# CS8803 DRL — Soccer-Twos
 
-Example training/testing scripts for the Soccer-Twos environment. This starter code is modified from the example code provided in https://github.com/bryanoliveira/soccer-twos-starter.
+CS8803 深度强化学习课程 Final Project。基于 [soccer-twos-starter](https://github.com/mdas64/soccer-twos-starter) 训练 2v2 足球多智能体。
 
-Environment-level specification code can be found at https://github.com/bryanoliveira/soccer-twos-env, which may also be useful to reference.
+## 快速开始
 
-## Requirements
+```bash
+# 一键安装（推荐）
+bash scripts/setup.sh
 
-- Python 3.8
-- See [requirements.txt](requirements.txt)
+# 或手动安装，见 CLAUDE.md 的 Setup 章节
+```
 
-## Usage
+```bash
+# 看随机 agent 跑比赛
+python examples/example_random_players.py
 
-### 1. Fork this repository
+# 训练
+python train_ray_team_vs_random_shaping.py
+python train_ray_selfplay.py
+python train_ray_curriculum.py
 
-git clone https://github.com/your-github-user/soccer-twos-starter.git
+# 评估
+python -m soccer_twos.watch -m example_player_agent
+python eval_rllib_checkpoint_vs_baseline.py -c <checkpoint_path>
+python evaluate_matches.py -m1 <agent_module> -m2 ceia_baseline_agent
+```
 
-cd soccer-twos-starter/
+## 项目结构
 
-### 2. Create and activate conda environment
-conda create --name soccertwos python=3.8 -y
+```
+├── CLAUDE.md                           # AI 协作入口（行为规则 + 架构摘要 + 保护等级）
+├── CHANGELOG.md                        # 版本记录
+├── .claude/settings.json               # Claude Code 配置
+│
+├── train_ray_team_vs_random_shaping.py # 主力训练：team vs policy + reward shaping
+├── train_ray_selfplay.py               # 自博弈训练
+├── train_ray_curriculum.py             # 课程学习训练
+├── utils.py                            # 核心工具（环境工厂、reward shaping、基线加载）
+├── checkpoint_utils.py                 # checkpoint 解析公共模块（canonical source）
+├── curriculum.yaml                     # 课程学习任务配置
+├── sitecustomize.py                    # Python 兼容性补丁
+├── eval_rllib_checkpoint_vs_baseline.py # checkpoint 评估
+├── evaluate_matches.py                  # 对战评估
+├── eval_checkpoints.sh                  # 批量评估 shell 封装
+├── trained_ray_agent.py                 # 已训练 agent 加载封装
+│
+├── agents/                             # 实验 agent 版本（_template/ + vNNN_xxx/）
+├── ceia_baseline_agent/                # 预训练基线 agent
+├── example_player_agent/               # 上游模板：单玩家 agent
+├── example_team_agent/                 # 上游模板：团队 agent
+├── examples/                           # 上游示例脚本（归档参考）
+├── scripts/                            # setup.sh 一键部署 + PACE 集群作业脚本
+├── docs/                               # 项目文档（见下方）
+└── report/                             # 最终报告
+```
 
-conda activate soccertwos
+## 文档
 
-### 3. Downgrade build tools for compatibility
-pip install pip==23.3.2 setuptools==65.5.0 wheel==0.38.4
+详见 [docs/README.md](docs/README.md) — 文档中心。
 
-pip cache purge
+| 文档 | 说明 |
+|------|------|
+| [CLAUDE.md](CLAUDE.md) | AI 协作入口，项目架构与约束 |
+| [架构总览](docs/architecture/overview.md) | 上游差异、目录结构、前任工作 |
+| [代码审计](docs/architecture/code-audit-000.md) | 接手时逐模块分析、问题、改进方向 |
+| [工程规范](docs/architecture/engineering-standards.md) | 环境搭建、commit 流程、实验迭代、环境变量速查 |
+| [实验记录](docs/experiments/README.md) | 实验索引与 snapshot |
+| [作业要求](docs/references/Final%20Project%20Instructions%20Document.md) | 评分标准（Markdown 版） |
 
-### 4. Install requirements
-pip install -r requirements.txt
+## 上游
 
-### 5. Fix protobuf and pydantic compatibility
-pip install protobuf==3.20.3
-
-pip install pydantic==1.10.13
-
-### 5. Run `python example_random.py` to watch a random agent play the game
-python example_random_players.py
-
-### 6. Train using any of the example scripts
-python example_ray_ppo_sp_still.py
-
-python example_ray_team_vs_random.py
-
-etc.
-
-## Agent Packaging
-
-To receive full credit on the assignment and ensure the teaching staff can properly compile your code, you must follow these instructions:
-
-- Implement a class that inherits from `soccer_twos.AgentInterface` and implements an `act` method. Examples are located under the `example_player_agent/` or `example_team_agent/` directories.
-- Fill in your agent's information in the `README.md` file (agent name, authors & emails, and description)
-- Compress each agent's module folder as `.zip`.
-
-*Submission Policy*: Students must submit multiple trained agents to meet all assignment requirements. In both the agent desription and the report, clearly identify which agent file corresponds to each evaluation criterion (e.g., Agent1 – policy performance, Agent2 – reward modification, Agent3 – imitation learning, etc.). 
-
-Training plots are required for every agent that is discussed or submitted. Additionally, include a direct performance comparison across agents, such as overlaid learning curves, to support your analysis.
-
-
-## Testing/Evaluating
-
-Use the environment's rollout tool to test the example agent module:
-
-`python -m soccer_twos.watch -m example_player_agent`
-
-Similarly, you can test your own agent by replacing `example_player_agent` with the name of your agent directory.
-
-The baseline agent is located here: [pre-trained baseline (download)](https://drive.google.com/file/d/1WEjr48D7QG9uVy1tf4GJAZTpimHtINzE/view?usp=sharing).
-To examine the baseline agent, you must extract the `ceia_baseline_agent` folder to this project's folder. For instance you can run, 
-
-`python -m soccer_twos.watch -m1 example_player_agent -m2 ceia_baseline_agent`
-
-, to examine the random agent vs. the baseline agent.
-
-
-
+- 课程指定 starter: https://github.com/mdas64/soccer-twos-starter
+- 环境源码: https://github.com/bryanoliveira/soccer-twos-env
+- 原版 README: [docs/references/upstream-README.md](docs/references/upstream-README.md)

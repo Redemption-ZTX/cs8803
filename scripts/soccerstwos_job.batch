@@ -1,23 +1,45 @@
 #!/bin/bash
 
-# Soccer Twos RL Training Job Example Batch Script for PACE
-# Author: Mili Das
-# Date: 2026
-
-# Replace gburdell3 with your GT username.
-# Replace the training script name with the actual script you want to run.
+# Soccer Twos RL Training Job Batch Script for PACE
+# Based on upstream example by Mili Das
+#
+# Usage: sbatch scripts/soccerstwos_job.batch
+#
+# Before submitting:
+#   1. Replace YOUR_GT_USERNAME with your GT username
+#   2. Replace YOUR_EMAIL with your GT email
+#   3. Replace the training script and env vars as needed
 
 #SBATCH --job-name=soccerstwos
-#SBATCH -N4 --ntasks-per-node=8
+#SBATCH -N1 --ntasks-per-node=8
+#SBATCH --gres=gpu:1
 #SBATCH --mem-per-cpu=6G
-#SBATCH -t12:00:00
+#SBATCH -t4:00:00
 #SBATCH --output=soccerstwos-%j.out
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=gburbell3@gatech.edu
+#SBATCH --mail-user=YOUR_EMAIL@gatech.edu
 
 source ~/miniconda3/etc/profile.d/conda.sh
-conda activate soccerstwos
+conda activate soccertwos
 
-# Run the training script
-python example_ray_ppo_sp_still.py
+# --- Configuration (adjust per experiment) ---
+export TIMESTEPS_TOTAL=15000000
+export TIME_TOTAL_S=14000       # slightly under SLURM time limit
+export NUM_GPUS=1
+export CHECKPOINT_FREQ=20
+export RUN_NAME="PPO_experiment_$(date +%Y%m%d_%H%M%S)"
 
+# --- Reward shaping (for selfplay / team_vs_random_shaping) ---
+# export SHAPING_TIME_PENALTY=0.001
+# export SHAPING_BALL_PROGRESS=0.01
+# export SHAPING_POSSESSION_BONUS=0.002
+
+# --- Evaluation ---
+# export EVAL_INTERVAL=10
+# export EVAL_EPISODES=10
+
+# --- Resume from checkpoint ---
+# export RESTORE_CHECKPOINT=/path/to/checkpoint-NNN
+
+# --- Run training ---
+python train_ray_team_vs_random_shaping.py
