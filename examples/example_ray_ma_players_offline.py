@@ -3,7 +3,7 @@ from ray import tune
 from soccer_twos import EnvType
 from soccer_twos.side_channels import EnvConfigurationChannel
 
-from utils import create_rllib_env
+from cs8803drl.core.utils import create_rllib_env
 
 env_channel = EnvConfigurationChannel()
 

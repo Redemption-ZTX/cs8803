@@ -10,10 +10,10 @@
 ### 一键安装
 
 ```bash
-bash scripts/setup.sh            # 全量：conda + 依赖 + baseline + 验证
-bash scripts/setup.sh --verify   # 仅验证
-bash scripts/setup.sh --deps-only  # 跳过 conda 创建，只装依赖
-bash scripts/setup.sh --no-baseline  # 跳过 baseline 下载
+bash scripts/setup/setup.sh              # 全量：conda + 依赖 + baseline + 验证
+bash scripts/setup/setup.sh --verify     # 仅验证
+bash scripts/setup/setup.sh --deps-only  # 跳过 conda 创建，只装依赖
+bash scripts/setup/setup.sh --no-baseline  # 跳过 baseline 下载
 ```
 
 ### 手动安装
@@ -36,7 +36,7 @@ pip install protobuf==3.20.3 pydantic==1.10.13
 #    解压到项目根目录的 ceia_baseline_agent/
 
 # 5. 验证
-bash scripts/setup.sh --verify
+bash scripts/setup/setup.sh --verify
 ```
 
 ### PACE 集群注意事项
@@ -44,7 +44,7 @@ bash scripts/setup.sh --verify
 - 通过 GT VPN → `ssh login-ice.pace.gatech.edu` 连接
 - home 目录 15GB 限制，用 scratch 目录存大文件: `$SCRATCH` 或 `/storage/ice-shared/`
 - conda 建议装到 scratch 下，避免 home 爆满
-- 提交作业: `sbatch scripts/soccerstwos_job.batch`
+- 提交作业: `sbatch scripts/batch/starter/soccerstwos_job.batch`
 - **不要在登录节点跑训练** — 必须通过 SLURM 提交
 - 更多: [PACE-ICE 文档](https://gatech.service-now.com/home?id=kb_article_view&sysparm_article=KB0042102)、[Slurm 指南](https://mshalimay.github.io/slurm_pace_guidelines/)
 
@@ -179,7 +179,7 @@ __pycache__/
 ```
 
 **自检清单**（commit 前必过）：
-- [ ] 现有训练脚本能正常 `from utils import ...`？
+- [ ] 现有训练脚本能正常 `from cs8803drl.core.utils import ...`？
 - [ ] agent 模块仍然满足提交格式（`__init__.py` + `AgentInterface`）？
 - [ ] 新增的可调参数用环境变量，而非硬编码？
 - [ ] 没有 FROZEN 文件在改动中？
@@ -209,6 +209,40 @@ __pycache__/
 - **commit hash 必须记录** — 没有 hash 的实验结果不可复现，等于没跑
 - **只用环境变量调参** — 不要为了跑实验去改训练脚本里的默认值
 - **失败也记录** — 知道什么不行和知道什么行一样重要
+
+### Checkpoint 选模规则
+
+从 2026-04-12 的 shaping-v1 / v2 复核开始，checkpoint 选模统一采用以下规则：
+
+1. **训练内评估只用于筛候选，不用于直接定 best**
+   - 默认使用 `baseline 50` 局
+   - 作用是缩小候选窗口，不做最终结论
+
+2. **正式复核按 `top 5% + ties`**
+   - 仅按训练内 `baseline` 胜率排序
+   - 取前 `5%` 的 checkpoint
+   - 如果第 `5%` cutoff 分数有并列，则同分 checkpoint 全部纳入
+
+3. **最终选模先看 `baseline 500`**
+   - 对 `top 5% + ties` 的全部候选跑官方 `500` 局 `baseline`
+   - 先只比较 `baseline`，不混入 `random`
+
+4. **`random` 只做最终补充确认**
+   - 在 `baseline 500` 里筛出最终 `1-2` 个候选后
+   - 再补 `random 500`
+   - 不再用 `random` 作为主判据
+
+5. **若大样本结果与训练内 `50` 局排序冲突，以 `500` 局为准**
+   - 训练内 `50` 局可能只是在抓到噪声尖峰
+   - 官方 `500` 局才是最终依据
+
+6. **在文档中必须同时记录两层结果**
+   - 训练内候选窗口（`50` 局）
+   - 官方大样本复核结果（`500` 局）
+
+7. **failure capture 的 checkpoint 选择跟随 `baseline 500` 结果**
+   - 失败样本分析优先针对大样本复核后真正最强的 checkpoint
+   - 不再默认分析训练内单个最高点
 
 ---
 
@@ -249,7 +283,7 @@ __pycache__/
 
 无自定义环境变量。所有配置硬编码在脚本中（网络、停止条件等）。课程任务定义在 `curriculum.yaml`。
 
-### `scripts/soccerstwos_job.batch` 覆盖值
+### `scripts/batch/starter/soccerstwos_job.batch` 覆盖值
 
 PACE 作业脚本中预设了部分环境变量，会覆盖脚本默认值：
 

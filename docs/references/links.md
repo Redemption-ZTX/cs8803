@@ -23,6 +23,6 @@
 | 链接 | 说明 |
 |------|------|
 | [PACE-ICE 文档](https://gatech.service-now.com/home?id=kb_article_view&sysparm_article=KB0042102) | 集群使用指南 |
-| [Slurm 指南](https://mshalimay.github.io/slurm_pace_guidelines/) | 作业脚本编写，对应 `scripts/soccerstwos_job.batch` |
+| [Slurm 指南](https://mshalimay.github.io/slurm_pace_guidelines/) | 作业脚本编写，对应 `scripts/batch/starter/soccerstwos_job.batch` |
 
 <!-- 格式：一句话说明 + 链接 + 相关文档引用 -->

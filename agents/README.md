@@ -31,8 +31,20 @@ cp -r agents/vYYY_best_reward agent_reward_mod
 
 然后分别 zip 提交。
 
+也可以直接用导出脚本从 checkpoint 构建 agent 模块：
+
+```bash
+python scripts/tools/build_agent_module.py \
+  -c ray_results/.../checkpoint_000123 \
+  -o agents/v123_my_agent \
+  --agent-name "My Agent" \
+  --author "Your Name (you@example.com)" \
+  --snapshot snapshot-123 \
+  --zip
+```
+
 ## 公共代码
 
-agent.py 中的 checkpoint 解析函数来自 `checkpoint_utils.py`（canonical source）。agent 模块必须自包含，所以是复制而非 import。修改 `checkpoint_utils.py` 后需要同步到各 agent 的 agent.py。
+agent.py 中的 checkpoint 解析函数来自 `cs8803drl/core/checkpoint_utils.py`（canonical source）。agent 模块必须自包含，所以是复制而非 import。修改该 canonical source 后需要同步到各 agent 的 `agent.py`。
 
 详见 [code-audit-000 § 6.1](../docs/architecture/code-audit-000.md#61-代码重复严重)。

@@ -1,0 +1,24 @@
+# SNAPSHOT-003: 官方 Evaluator 对齐与 Warm-Start 重选
+
+- **日期**: 2026-04-09
+- **负责人**:
+- **目标**: 对齐本地评估口径与官方 `soccer_twos.evaluate`，重新确认 single-player warm-start 起点。
+- **配置**:
+  - 脚本: [scripts/eval/evaluate_official_suite.py](../../scripts/eval/evaluate_official_suite.py), [scripts/eval/evaluate_official_scan.py](../../scripts/eval/evaluate_official_scan.py), [evaluate_matches.py](../../cs8803drl/evaluation/evaluate_matches.py)
+  - 评估口径: 官方 evaluator；小样本筛选 20/50 局，最终确认 200 局
+  - 候选: `checkpoint_000160`, `checkpoint_000205`, `checkpoint_000220`, `checkpoint_000225`, `checkpoint_000250`, `checkpoint_000255`
+- **结果**:
+  - 发现旧版 [evaluate_matches.py](../../cs8803drl/evaluation/evaluate_matches.py) 与官方 evaluator 存在口径差异：未轮换边、橙队 agent id 非 team-local。
+  - 修正后，single-player 最佳 warm-start 不再是 `checkpoint_250/255`，而是 [checkpoint_225](../../ray_results/PPO_continue_ckpt160_cpu32_20260408_183648/PPO_Soccer_79ad0_00000_0_2026-04-08_18-37-08/checkpoint_000225/checkpoint-225)。
+  - `checkpoint_225` 官方结果：
+    - `vs baseline`: `79/100`
+    - `vs random`: `100/100`
+- **结论**:
+  - 之后所有最终选模统一以官方 evaluator 大样本结果为准。
+  - 自动训练内评估仅用于筛 checkpoint，不作为最终结论。
+  - 后续 role / shared-policy 实验的 warm-start 基线更新为 `checkpoint_225`。
+- **相关**:
+  - [overview.md](../architecture/overview.md)
+  - [engineering-standards.md](../architecture/engineering-standards.md#实验迭代)
+  - [artifacts/official-evals/](artifacts/official-evals/)
+  - [artifacts/official-scans/](artifacts/official-scans/)

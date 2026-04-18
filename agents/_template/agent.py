@@ -22,12 +22,16 @@ from soccer_twos import AgentInterface
 try:
     from soccer_twos.wrappers import ActionFlattener
 except Exception:
-    ActionFlattener = None
+    try:
+        from gym_unity.envs import ActionFlattener
+    except Exception:
+        ActionFlattener = None
 
 
 ALGORITHM = "PPO"
 POLICY_NAME = "default_policy"
 _AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
+_DUMMY_ENV_NAME = "DummyEnv_" + os.path.basename(_AGENT_DIR)
 
 
 # ---------------------------------------------------------------------------
@@ -348,8 +352,11 @@ class RayAgent(AgentInterface):
         elif isinstance(act_space, gym.spaces.MultiDiscrete):
             act_space = gym.spaces.Discrete(int(np.prod(act_space.nvec)))
 
-        tune.registry.register_env("DummyEnv", lambda *_: _DummyGymEnv(obs_space, act_space))
-        config["env"] = "DummyEnv"
+        tune.registry.register_env(
+            _DUMMY_ENV_NAME,
+            lambda *_: _DummyGymEnv(obs_space, act_space),
+        )
+        config["env"] = _DUMMY_ENV_NAME
         config["env_config"] = {}
 
         self._env_action_space = getattr(env, "action_space", None)
@@ -362,6 +369,7 @@ class RayAgent(AgentInterface):
 
         cls = get_trainable_cls(ALGORITHM)
         trainer = cls(env=config["env"], config=config)
+        self._trainer = trainer
 
         # Load weights
         state = _unpickle_if_bytes(raw_state)

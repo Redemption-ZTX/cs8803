@@ -1,0 +1,30 @@
+# SNAPSHOT-004: Role PPO 与 Shared-Policy 方向消融
+
+- **日期**: 2026-04-09
+- **负责人**:
+- **目标**:
+  - 评估 warm-start role PPO、conservative/aggressive fine-tune、from-scratch role PPO 的上限
+  - 启动 shared-policy multi-agent PPO + role token 新主线
+- **配置**:
+  - role 训练脚本: [train_ray_role_specialization.py](../../cs8803drl/training/train_ray_role_specialization.py)
+  - shared-policy 训练脚本: [train_ray_shared_policy_role_token.py](../../cs8803drl/training/train_ray_shared_policy_role_token.py)
+  - 评估: [scripts/eval/evaluate_official_suite.py](../../scripts/eval/evaluate_official_suite.py)
+  - 选模口径: 训练内 50 局筛选，官方 200 局确认
+- **阶段结果**:
+  - 旧 role best [checkpoint_30](../../ray_results/PPO_role_cpu32_20260408_193132/RoleSpecializedPPOTrainer_Soccer_20344_00000_0_2026-04-08_19-31-54/checkpoint_000030/checkpoint-30)
+    - `vs baseline`: `160/200 = 0.800`
+    - `vs random`: `200/200 = 1.000`
+  - aggressive warm225 [checkpoint_40](../../ray_results/PPO_role_warm225_aggressive_20260408_224536/RoleSpecializedPPOTrainer_Soccer_3c992_00000_0_2026-04-08_22-45-58/checkpoint_000040/checkpoint-40)
+    - `vs baseline`: `158/200 = 0.790`
+    - `vs random`: `198/200 = 0.990`
+  - conservative warm225：训练内 `50` 局 spike 明显，但官方 `100` 局无法复现。
+  - from-scratch role PPO：明显差于 warm-start 路线。
+  - shared-policy + role token：最小 smoke 训练与 evaluator 闭环已打通，效果实验待继续。
+- **当前结论**:
+  - warm-start 是必要的，但并不是当前瓶颈。
+  - 现有 role PPO 训练目标与真实比赛胜率仍有明显错位。
+  - 下一步主线切到“共享参数 multi-agent PPO + role token + 贴近真实比赛 reward”。
+- **相关**:
+  - [snapshot-003-official-evaluator-realignment.md](snapshot-003-official-evaluator-realignment.md)
+  - [overview.md](../architecture/overview.md)
+  - [artifacts/official-scans/](artifacts/official-scans/)

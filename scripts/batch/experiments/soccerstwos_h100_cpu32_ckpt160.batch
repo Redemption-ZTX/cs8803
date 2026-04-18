@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# PACE batch script for the current best training line:
+# PPO + team_vs_policy + reward shaping + baseline-only opponent mix,
+# resumed from checkpoint_000160.
+#
+# Usage:
+#   sbatch scripts/batch/experiments/soccerstwos_h100_cpu32_ckpt160.batch
+#
+# Notes:
+# - Assumes the repo is at /home/hice1/wsun377/Desktop/cs8803drl
+# - Uses the H100 overlay environment created by scripts/setup/setup_h100_overlay.sh
+# - Requests 1 x H100 and 32 CPUs, but intentionally uses 24 rollout workers
+#   to leave room for the learner, Ray control processes, and Unity overhead.
+
+#SBATCH -J soccer-ckpt160
+#SBATCH -A ece
+#SBATCH -p coe-gpu
+#SBATCH --qos=coe-ice
+#SBATCH -N 1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+#SBATCH --gres=gpu:h100:1
+#SBATCH --mem=100G
+#SBATCH -t 08:00:00
+#SBATCH -o soccer-ckpt160-%j.out
+
+set -euo pipefail
+
+REPO_DIR="/home/hice1/wsun377/Desktop/cs8803drl"
+PYTHON_BIN="/home/hice1/wsun377/.venvs/soccertwos_h100/bin/python"
+RESTORE_CKPT="/home/hice1/wsun377/Desktop/cs8803drl/ray_results/PPO_train_h100_cpu24_20260408_165721/PPO_Soccer_955eb_00000_0_2026-04-08_16-57-41/checkpoint_000160/checkpoint-160"
+
+cd "$REPO_DIR"
+
+bash scripts/setup/setup_h100_overlay.sh --verify-only
+
+export PYTHONPATH="$REPO_DIR${PYTHONPATH:+:$PYTHONPATH}"
+export QUIET_CONSOLE=1
+
+# Keep per-process BLAS threading low; Ray already parallelizes across workers.
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
+export RESTORE_CHECKPOINT="$RESTORE_CKPT"
+export RUN_NAME="PPO_continue_ckpt160_cpu32_$(date +%Y%m%d_%H%M%S)"
+
+export NUM_GPUS=1
+export NUM_WORKERS=24
+export NUM_ENVS_PER_WORKER=1
+export FCNET_HIDDENS=256,128
+export ROLLOUT_FRAGMENT_LENGTH=1000
+export TRAIN_BATCH_SIZE=24000
+export SGD_MINIBATCH_SIZE=2048
+export NUM_SGD_ITER=5
+
+export BASELINE_PROB=1.0
+export TIMESTEPS_TOTAL=5000000
+export TIME_TOTAL_S=28000
+export CHECKPOINT_FREQ=5
+
+# Evaluate periodically against baseline and choose checkpoints by win rate,
+# not just by training reward.
+export EVAL_INTERVAL=5
+export EVAL_EPISODES=20
+export EVAL_BASE_PORT=64005
+export EVAL_MAX_STEPS=1500
+export EVAL_OPPONENTS=baseline
+export EVAL_PYTHON_BIN="$PYTHON_BIN"
+
+export BASE_PORT=64105
+export LOG_LEVEL=WARN
+export LOG_SYS_USAGE=0
+
+"$PYTHON_BIN" -u -m cs8803drl.training.train_ray_team_vs_random_shaping

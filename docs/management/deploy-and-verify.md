@@ -41,7 +41,7 @@ cd cs8803
 #    激活: source $SCRATCH/miniconda3/etc/profile.d/conda.sh
 
 # 6. 一键安装项目环境
-bash scripts/setup.sh
+bash scripts/setup/setup.sh
 ```
 
 **PACE 已知问题（来自作业文档）：**
@@ -55,13 +55,13 @@ bash scripts/setup.sh
 ```bash
 git clone https://github.com/Redemption-ZTX/cs8803.git
 cd cs8803
-bash scripts/setup.sh
+bash scripts/setup/setup.sh
 ```
 
 ### 1.3 验证环境
 
 ```bash
-bash scripts/setup.sh --verify
+bash scripts/setup/setup.sh --verify
 ```
 
 预期输出：所有项显示 ✓。如果 baseline checkpoint 显示 ✗，检查 `ceia_baseline_agent/` 是否完整。
@@ -75,6 +75,42 @@ python examples/example_random_players.py
 
 如果 Unity 窗口弹出（本地）或无报错退出（headless），环境正常。
 
+### 1.5 H100 / Hopper 节点推荐做法
+
+如果你在 H100 上看到：
+
+```text
+RuntimeError: CUDA error: no kernel image is available for execution on the device
+```
+
+不要直接覆盖旧 `soccertwos` 环境。更稳的做法是保留旧环境，再补一个 overlay venv：
+
+```bash
+bash scripts/setup/setup_h100_overlay.sh
+```
+
+这个脚本会：
+
+- 复用旧环境中的 `ray / soccer_twos / mlagents`
+- 仅把 `torch` 切到 H100 可用的 CUDA wheel
+- 保留旧环境作为 CPU / 回退路径
+
+只做验证时：
+
+```bash
+bash scripts/setup/setup_h100_overlay.sh --verify-only
+```
+
+注意：`--verify-only` 需要在已分配到 GPU 的计算节点里运行；如果只是在登录节点安装 overlay，本身不会验证 CUDA。
+
+GPU 训练时改用：
+
+```bash
+/home/hice1/wsun377/.venvs/soccertwos_h100/bin/python -m cs8803drl.training.train_ray_team_vs_random_shaping
+```
+
+真实验证结果见 [snapshot-002](../experiments/snapshot-002-h100-overlay-env-validation.md)。
+
 ---
 
 ## Step 2: 测试现有最佳 checkpoint
@@ -83,7 +119,7 @@ python examples/example_random_players.py
 
 对应 reward 峰值 +1.91，详见 [snapshot-000 § 可用 Checkpoints](../experiments/snapshot-000-prior-team.md#可用-checkpoints)。
 
-### 2.1 用 eval_rllib_checkpoint_vs_baseline.py 评估
+### 2.1 用 `cs8803drl.evaluation.eval_rllib_checkpoint_vs_baseline` 评估
 
 ```bash
 conda activate soccertwos
@@ -92,12 +128,12 @@ conda activate soccertwos
 CKPT="ray_results/PPO_team_vs_mix_baseline90_random10_cont_eval_cont2/PPO_Soccer_e71e6_00000_0_2026-03-31_15-57-53/checkpoint_000712/checkpoint-712"
 
 # 对战基线，50 局
-python eval_rllib_checkpoint_vs_baseline.py -c "$CKPT" -n 50
+python -m cs8803drl.evaluation.eval_rllib_checkpoint_vs_baseline -c "$CKPT" -n 50
 ```
 
 记录输出的 `win_rate`。
 
-### 2.2 用 evaluate_matches.py 评估（通过 agent 模块）
+### 2.2 用 `cs8803drl.evaluation.evaluate_matches` 评估（通过 agent 模块）
 
 ```bash
 # 从模板创建一个测试 agent
@@ -108,10 +144,10 @@ cp "$CKPT" agents/v000_prior_checkpoint/checkpoint
 cp "$(dirname $CKPT)/../params.pkl" agents/v000_prior_checkpoint/params.pkl
 
 # 对战基线
-python evaluate_matches.py -m1 agents.v000_prior_checkpoint -m2 ceia_baseline_agent -n 10
+python -m cs8803drl.evaluation.evaluate_matches -m1 agents.v000_prior_checkpoint -m2 ceia_baseline_agent -n 10
 
 # 对战随机
-python evaluate_matches.py -m1 agents.v000_prior_checkpoint -m2 example_player_agent -n 10
+python -m cs8803drl.evaluation.evaluate_matches -m1 agents.v000_prior_checkpoint -m2 example_player_agent -n 10
 ```
 
 ### 2.3 需要记录的指标
@@ -140,7 +176,7 @@ python evaluate_matches.py -m1 agents.v000_prior_checkpoint -m2 example_player_a
 # verify_reward_shaping.py
 """One-off script to verify reward shaping extracts ball/player positions."""
 import soccer_twos
-from utils import create_rllib_env, RewardShapingWrapper
+from cs8803drl.core.utils import create_rllib_env, RewardShapingWrapper
 
 env = create_rllib_env({
     "variation": soccer_twos.EnvType.team_vs_policy,
@@ -229,5 +265,5 @@ python verify_reward_shaping.py
 | `mlagents_envs.exception.UnityWorkerInUseException` | 端口被占用，加 `--base_port 9200` 换端口 |
 | Unity binary 找不到 | soccer_twos 会自动下载，检查网络连接 |
 | `FileNotFoundError: checkpoint` | 确认路径正确，PACE 上注意 scratch vs home 路径 |
-| `numpy` / `protobuf` 版本错误 | `bash scripts/setup.sh --verify` 检查，重装对应版本 |
+| `numpy` / `protobuf` 版本错误 | `bash scripts/setup/setup.sh --verify` 检查，重装对应版本 |
 | PACE 排队太久 | 避开 DDL 前几天，或用 `--partition` 指定空闲分区 |

@@ -1,0 +1,49 @@
+#!/bin/bash
+# Experiment Lane:
+# Capture and aggregate baseline-vs-random episodes for weakness analysis.
+
+#SBATCH -J soccer-bw-bvr
+#SBATCH -A ece
+#SBATCH -p coe-gpu
+#SBATCH --qos=coe-ice
+#SBATCH -N 1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+#SBATCH --gres=gpu:h100:1
+#SBATCH --mem=100G
+#SBATCH -t 08:00:00
+#SBATCH -o soccer-bw-bvr-%j.out
+
+set -euo pipefail
+
+cd /home/hice1/wsun377/Desktop/cs8803drl
+
+PYTHON_BIN=/home/hice1/wsun377/.venvs/soccertwos_h100/bin/python
+
+export PYTHONPATH=$PWD${PYTHONPATH:+:$PYTHONPATH}
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
+export BW_RUN_NAME=${BW_RUN_NAME:-baseline_vs_random_$(date +%Y%m%d_%H%M%S)}
+export BW_EPISODES=${BW_EPISODES:-500}
+export BW_MAX_STEPS=${BW_MAX_STEPS:-1500}
+export BW_BASE_PORT=${BW_BASE_PORT:-62005}
+export BW_SAVE_DIR=${BW_SAVE_DIR:-/home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/baseline-weakness/$BW_RUN_NAME}
+export BW_SUMMARY_JSON=${BW_SUMMARY_JSON:-$BW_SAVE_DIR/analysis_summary.json}
+
+$PYTHON_BIN -u scripts/eval/capture_failure_cases.py \
+  --team0-module ceia_baseline_agent \
+  --opponent random \
+  -n "$BW_EPISODES" \
+  --max-steps "$BW_MAX_STEPS" \
+  --base-port "$BW_BASE_PORT" \
+  --save-dir "$BW_SAVE_DIR" \
+  --save-mode all \
+  --max-saved-episodes "$BW_EPISODES" \
+  --trace-stride 10 \
+  --trace-tail-steps 30 2>&1
+
+$PYTHON_BIN -u scripts/eval/analyze_episode_records.py \
+  --episodes-dir "$BW_SAVE_DIR" \
+  --save-json "$BW_SUMMARY_JSON" 2>&1

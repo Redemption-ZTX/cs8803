@@ -31,8 +31,8 @@ CS8803 DRL course project — multi-agent deep reinforcement learning on the Soc
 ## Setup
 
 ```bash
-bash scripts/setup.sh            # Full setup: conda + deps + baseline + verify
-bash scripts/setup.sh --verify   # Verify only
+bash scripts/setup/setup.sh            # Full setup: conda + deps + baseline + verify
+bash scripts/setup/setup.sh --verify   # Verify only
 ```
 
 For manual steps, PACE cluster notes, and troubleshooting, see [docs/architecture/engineering-standards.md](docs/architecture/engineering-standards.md#环境搭建).
@@ -47,23 +47,40 @@ For manual steps, PACE cluster notes, and troubleshooting, see [docs/architectur
 
 ```bash
 python examples/example_random_players.py                              # Watch random agent
-python train_ray_team_vs_random_shaping.py                             # Main training script
-python train_ray_selfplay.py                                           # Self-play training
-python train_ray_curriculum.py                                         # Curriculum training
+python -m cs8803drl.training.train_ray_base_team_vs_random            # Starter-aligned scratch base lane: team_vs_random
+python -m cs8803drl.training.train_ray_base_team_vs_baseline          # Baseline-targeted scratch base lane: team_vs_policy vs baseline
+python -m cs8803drl.training.train_ray_base_ma_teams                  # Starter-aligned scratch base lane: shared-policy multiagent_team
+python -m cs8803drl.training.train_ray_team_vs_random_shaping          # Main training script
+python -m cs8803drl.training.train_ray_role_specialization             # Dual-policy role-specialized PPO
+python -m cs8803drl.training.train_ray_shared_policy_role_token        # Shared-policy multi-agent PPO + role token
+python -m cs8803drl.training.train_ray_selfplay                        # Self-play training
+python -m cs8803drl.training.train_ray_curriculum                      # Curriculum training
 python -m soccer_twos.watch -m1 example_player_agent -m2 ceia_baseline_agent  # Visual eval
-python eval_rllib_checkpoint_vs_baseline.py -c <checkpoint_path>       # Checkpoint eval
-python evaluate_matches.py -m1 <agent_module> -m2 ceia_baseline_agent  # Match eval
+python -m soccer_twos.watch -m cs8803drl.deployment.trained_team_ray_agent     # Watch team-level base checkpoint
+python -m soccer_twos.watch -m cs8803drl.deployment.trained_ma_team_agent      # Watch shared-policy multiagent_team base checkpoint
+python -m cs8803drl.evaluation.eval_rllib_checkpoint_vs_baseline -c <checkpoint_path>  # Checkpoint eval
+python -m cs8803drl.evaluation.evaluate_matches -m1 <agent_module> -m2 ceia_baseline_agent  # Match eval
+python scripts/eval/evaluate_official_suite.py --team0-module cs8803drl.deployment.trained_ray_agent --opponents baseline -n 200 --checkpoint <checkpoint_path>  # Official evaluator
 ```
 
 Hyperparameters are controlled via environment variables. Full env var reference in [docs/architecture/engineering-standards.md](docs/architecture/engineering-standards.md#环境变量速查).
 
 ## Architecture (summary)
 
-- `utils.py` — Central env factory (`create_rllib_env`), `RewardShapingWrapper`, baseline policy loader
-- `checkpoint_utils.py` — Canonical checkpoint parsing (unpickle, weight extraction, sanitization). Agent modules contain copies for zip submission
-- `train_ray_team_vs_random_shaping.py` — Main training: single-agent PPO, reward shaping, baseline eval
-- `train_ray_selfplay.py` — 2v2 multi-agent with frozen baseline + self-play pool
-- `train_ray_curriculum.py` — Task progression from `curriculum.yaml`
+- `cs8803drl/core/utils.py` — Central env factory (`create_rllib_env`), `RewardShapingWrapper`, baseline policy loader
+- `cs8803drl/core/soccer_info.py` — Shared match-info parsing (`score`/`winner`/positions) and pure reward-shaping logic
+- `cs8803drl/core/checkpoint_utils.py` — Canonical checkpoint parsing (unpickle, weight extraction, sanitization)
+- `cs8803drl/training/train_ray_base_team_vs_random.py` — Starter-aligned scratch base-model lane (`team_vs_random`)
+- `cs8803drl/training/train_ray_base_team_vs_baseline.py` — Baseline-targeted scratch base-model lane (`team_vs_policy` vs `baseline`)
+- `cs8803drl/training/train_ray_base_ma_teams.py` — Starter-aligned scratch base-model lane (shared-policy `multiagent_team`)
+- `cs8803drl/deployment/trained_team_ray_agent.py` — Team-level base checkpoint wrapper for starter-aligned `team_vs_random`
+- `cs8803drl/deployment/trained_ma_team_agent.py` — Shared-policy multiagent-team checkpoint wrapper for starter-aligned `multiagent_team`
+- `cs8803drl/training/train_ray_team_vs_random_shaping.py` — Main training: single-agent PPO, reward shaping, baseline eval
+- `cs8803drl/training/train_ray_role_specialization.py` — Experimental branch: dual-policy role-specialized PPO
+- `cs8803drl/training/train_ray_shared_policy_role_token.py` — Experimental branch: shared-policy multi-agent PPO with role tokens
+- `cs8803drl/branches/role_specialization.py` / `cs8803drl/branches/shared_role_token.py` — policy mapping, warm-start, role-token utilities
+- `cs8803drl/training/train_ray_selfplay.py` — 2v2 multi-agent with frozen baseline + self-play pool
+- `cs8803drl/training/train_ray_curriculum.py` — Task progression from `curriculum.yaml`
 - Agent modules inherit `soccer_twos.AgentInterface`, implement `act()`, submit as zipped directories
 
 Full architecture: [docs/architecture/overview.md](docs/architecture/overview.md). Code audit: [docs/architecture/code-audit.md](docs/architecture/code-audit.md).
@@ -79,8 +96,8 @@ Full architecture: [docs/architecture/overview.md](docs/architecture/overview.md
 - `docs/references/*.pdf`, `docs/references/upstream-README.md` — source of truth
 
 **CAREFUL — modify only with good reason, document in ADR:**
-- `utils.py`, `checkpoint_utils.py`, `train_ray_selfplay.py`, `train_ray_team_vs_random_shaping.py`, `train_ray_curriculum.py`, `curriculum.yaml`, `sitecustomize.py`
-- When modifying `checkpoint_utils.py`, sync copies to `agents/_template/agent.py` and all `agents/vNNN_*/agent.py`
+- `cs8803drl/core/utils.py`, `cs8803drl/core/checkpoint_utils.py`, `cs8803drl/training/train_ray_selfplay.py`, `cs8803drl/training/train_ray_team_vs_random_shaping.py`, `cs8803drl/training/train_ray_curriculum.py`, `curriculum.yaml`, `sitecustomize.py`
+- When modifying `cs8803drl/core/checkpoint_utils.py`, sync copies to `agents/_template/agent.py` and all `agents/vNNN_*/agent.py`
 
 **FREE — create and modify freely:**
 - `agents/` (all experiment agent versions), `docs/`, `scripts/`, `report/`, new `.py` files, project meta files
@@ -89,6 +106,7 @@ Full architecture: [docs/architecture/overview.md](docs/architecture/overview.md
 
 1. **Documentation is not optional** — every code merge needs `CHANGELOG.md`; every experiment needs a `snapshot-NNN.md` BEFORE running; every new file must be indexed
 2. **Indexes must stay in sync** — when any file is added/removed/renamed, update ALL indexes: `docs/README.md` file tree, root `README.md` project structure, relevant sub-index (`experiments/README.md`, `adr/README.md`, `code-audit.md`), and any references in `CLAUDE.md`
+   Directory placement and root-vs-subdirectory rules are defined in [docs/management/directory-governance.md](docs/management/directory-governance.md)
 3. **Cross-references are mandatory** — no orphan docs; snapshots link to code-audit/ADR; ADRs link to code
 4. **Snapshots are append-only** — never modify completed `code-audit-NNN.md` or `snapshot-NNN.md`; write a new one instead
 5. **No silent experiments** — no training without recording; no editing script defaults for experiments (use env vars); no deleting ray_results without extracting metrics
@@ -113,8 +131,24 @@ Full architecture: [docs/architecture/overview.md](docs/architecture/overview.md
 These come directly from the [assignment document](docs/references/Final%20Project%20Instructions%20Document.md#pace-documentation):
 
 - **All work under `$SCRATCH`** — home directory is 15GB, will lock you out if full. Clone repo, install conda, store ray_results all in scratch.
-- **Never run training on login node** — submit via `sbatch scripts/soccerstwos_job.batch`
+- **Never run training on login node** — submit via `sbatch scripts/batch/starter/soccerstwos_job.batch`
 - **Do NOT contact PACE support** — course does not have direct student support from PACE
 - **Start training early** — GPU queues spike near DDL, you may wait hours
 - **Use Open OnDemand** for file transfer: https://gatech.service-now.com/home?id=kb_article_view&sysparm_article=KB0042133
 - **Connect via GT VPN first** → `ssh GT_USERNAME@login-ice.pace.gatech.edu`
+
+### GPU Resource Request
+
+```bash
+srun --gres=gpu:H100:1 --mem=100G -t 08:00:00 --pty bash
+```
+
+- **SCRATCH path**: `/storage/ice1/5/1/wsun377`
+- **Home quota**: 30GB (currently ~2.1GB used)
+- **Conda env activation**: `module load anaconda3/2023.03 && source activate soccertwos`
+
+### Cluster Status (2026-04-08 12:18 EDT)
+
+| JOBID | Partition | Status | Elapsed | Time Limit | Node | GPU |
+|-------|-----------|--------|---------|------------|------|-----|
+| 4627063 | coe-gpu | Running | 00:10:26 | 8:00:00 | atl1-1-03-010-20-0 | H100:1 |

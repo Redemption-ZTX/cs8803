@@ -1,0 +1,73 @@
+#!/bin/bash
+# Adaptation Lane:
+# team_vs_baseline joint-action PPO with reward shaping enabled.
+# Variant 3: conservative restore from Base-D 512x512 checkpoint-410.
+# Goal: keep the restore advantage while reducing drift from aggressive updates
+# and full-strength shaping.
+
+#SBATCH -J soccer-adapt-bs-rc
+#SBATCH -A ece
+#SBATCH -p coe-gpu
+#SBATCH --qos=coe-ice
+#SBATCH -N 1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+#SBATCH --gres=gpu:h100:1
+#SBATCH --mem=100G
+#SBATCH -t 08:00:00
+#SBATCH -o soccer-adapt-bs-rc-%j.out
+
+set -euo pipefail
+
+cd /home/hice1/wsun377/Desktop/cs8803drl
+
+PYTHON_BIN=/home/hice1/wsun377/.venvs/soccertwos_h100/bin/python
+BASELINE_RESTORE=/home/hice1/wsun377/Desktop/cs8803drl/ray_results/PPO_base_team_vs_baseline_512x512_20260411_192140/BaseTeamVsBaselinePPOTrainer_Soccer_3e75a_00000_0_2026-04-11_19-22-01/checkpoint_000410/checkpoint-410
+
+export PYTHONPATH=$PWD${PYTHONPATH:+:$PYTHONPATH}
+export QUIET_CONSOLE=${QUIET_CONSOLE:-0}
+
+unset WARMSTART_CHECKPOINT
+unset TEAMMATE_CHECKPOINT
+unset TEAMMATE_BASE_CHECKPOINT
+
+export RESTORE_CHECKPOINT=${RESTORE_CHECKPOINT:-$BASELINE_RESTORE}
+
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
+export RUN_NAME=${RUN_NAME:-PPO_team_vs_baseline_shaping_restore_512x512_conservative_$(date +%Y%m%d_%H%M%S)}
+export NUM_GPUS=${NUM_GPUS:-1}
+export NUM_WORKERS=${NUM_WORKERS:-8}
+export NUM_ENVS_PER_WORKER=${NUM_ENVS_PER_WORKER:-5}
+export FCNET_HIDDENS=${FCNET_HIDDENS:-512,512}
+export ROLLOUT_FRAGMENT_LENGTH=${ROLLOUT_FRAGMENT_LENGTH:-1000}
+export NUM_SGD_ITER=${NUM_SGD_ITER:-4}
+export LR=${LR:-0.0001}
+export BASELINE_PROB=${BASELINE_PROB:-1.0}
+export USE_REWARD_SHAPING=${USE_REWARD_SHAPING:-1}
+
+# Keep shaping on, but make it weaker to reduce objective mismatch after restore.
+export SHAPING_TIME_PENALTY=${SHAPING_TIME_PENALTY:-0.0005}
+export SHAPING_BALL_PROGRESS=${SHAPING_BALL_PROGRESS:-0.005}
+export SHAPING_POSSESSION_BONUS=${SHAPING_POSSESSION_BONUS:-0.001}
+
+unset TIMESTEPS_TOTAL
+export RESTORE_TIMESTEPS_DELTA=${RESTORE_TIMESTEPS_DELTA:-6000000}
+export TIME_TOTAL_S=${TIME_TOTAL_S:-28000}
+export CHECKPOINT_FREQ=${CHECKPOINT_FREQ:-5}
+
+export EVAL_INTERVAL=${EVAL_INTERVAL:-5}
+export EVAL_EPISODES=${EVAL_EPISODES:-50}
+export EVAL_BASE_PORT=${EVAL_BASE_PORT:-63405}
+export EVAL_MAX_STEPS=${EVAL_MAX_STEPS:-1500}
+export EVAL_OPPONENTS=${EVAL_OPPONENTS:-baseline,random}
+export EVAL_TEAM0_MODULE=${EVAL_TEAM0_MODULE:-cs8803drl.deployment.trained_team_ray_agent}
+export EVAL_PYTHON_BIN=${EVAL_PYTHON_BIN:-$PYTHON_BIN}
+
+export BASE_PORT=${BASE_PORT:-63505}
+export LOG_LEVEL=${LOG_LEVEL:-INFO}
+export LOG_SYS_USAGE=${LOG_SYS_USAGE:-0}
+
+$PYTHON_BIN -u -m cs8803drl.training.train_ray_team_vs_baseline_shaping 2>&1

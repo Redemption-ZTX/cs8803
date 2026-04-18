@@ -1,0 +1,44 @@
+#!/bin/bash
+# Experiment Lane:
+# Collect team-level baseline self-play trajectories for imitation learning.
+
+#SBATCH -J soccer-il-selfplay
+#SBATCH -A ece
+#SBATCH -p coe-gpu
+#SBATCH --qos=coe-ice
+#SBATCH -N 1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+#SBATCH --gres=gpu:h100:1
+#SBATCH --mem=100G
+#SBATCH -t 08:00:00
+#SBATCH -o soccer-il-selfplay-%j.out
+
+set -euo pipefail
+
+cd /home/hice1/wsun377/Desktop/cs8803drl
+
+PYTHON_BIN=/home/hice1/wsun377/.venvs/soccertwos_h100/bin/python
+
+export PYTHONPATH=$PWD${PYTHONPATH:+:$PYTHONPATH}
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
+export IL_RUN_NAME=${IL_RUN_NAME:-baseline_selfplay_team_$(date +%Y%m%d_%H%M%S)}
+export IL_EPISODES=${IL_EPISODES:-5000}
+export IL_MAX_STEPS=${IL_MAX_STEPS:-1500}
+export IL_BASE_PORT=${IL_BASE_PORT:-61605}
+export IL_SHARD_SIZE=${IL_SHARD_SIZE:-50000}
+export IL_SAVE_DIR=${IL_SAVE_DIR:-/home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/imitation/$IL_RUN_NAME}
+
+$PYTHON_BIN -u scripts/tools/collect_baseline_trajectories.py \
+  --team0-module ceia_baseline_agent \
+  --team1-module ceia_baseline_agent \
+  --episodes "$IL_EPISODES" \
+  --max-steps "$IL_MAX_STEPS" \
+  --base-port "$IL_BASE_PORT" \
+  --save-dir "$IL_SAVE_DIR" \
+  --mode team \
+  --include-both-teams \
+  --shard-size "$IL_SHARD_SIZE" 2>&1

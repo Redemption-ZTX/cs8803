@@ -3,7 +3,7 @@ import yaml
 
 import soccer_twos
 from soccer_twos import EnvType
-from utils import sample_pos_vel, sample_player
+from cs8803drl.core.utils import sample_pos_vel, sample_player
 
 current = 0
 with open("curriculum.yaml") as f:

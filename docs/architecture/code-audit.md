@@ -7,6 +7,7 @@
 | 编号 | 标题 | 日期 | 代码状态 |
 |------|------|------|---------|
 | [000](code-audit-000.md) | 接手时代码审计 | 2026-04-07 | 上游 + 前任修改，未做任何优化 |
+| [001](code-audit-001.md) | 隐藏约束与默认假设审查（assumption-driven audit）| 2026-04-15 | 9-lane 数据齐备后，针对 `low_possession` 跨 lane 不变量做的 focused audit；3 🔴 + 5 🟡 + 7 ⚪ 新发现，含 actor-only-own-obs / policy 时间盲 / agent_id spawn 稳定性未验证 等|
 
 ## 命名规范
 

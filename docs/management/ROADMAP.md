@@ -83,7 +83,7 @@
 | 接手收尾 | DONE | 已 commit + push |
 | 环境部署 | IN PROGRESS | 本地已验证，PACE 待部署 |
 | 现有 checkpoint 胜率测试 | TODO | |
-| 修复 reward shaping bug | TODO | 已确认 _extract_ball_pos 失效 |
+| 修复 reward shaping bug | DONE | 已通过 `soccertwos` 真环境验证，见 `snapshot-001` |
 | 训练路线确定 | TODO | 待测试数据 |
 | Modification agent 训练 | TODO | |
 | Performance agent 训练 | TODO | |

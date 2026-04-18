@@ -1,0 +1,62 @@
+#!/bin/bash
+# Adaptation Lane:
+# team_vs_baseline joint-action PPO with reward shaping enabled.
+# Variant 1: scratch 512x512, longer run (20M steps).
+
+#SBATCH -J soccer-adapt-bs-s
+#SBATCH -A ece
+#SBATCH -p coe-gpu
+#SBATCH --qos=coe-ice
+#SBATCH -N 1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+#SBATCH --gres=gpu:h100:1
+#SBATCH --mem=100G
+#SBATCH -t 08:00:00
+#SBATCH -o soccer-adapt-bs-s-%j.out
+
+set -euo pipefail
+
+cd /home/hice1/wsun377/Desktop/cs8803drl
+
+PYTHON_BIN=/home/hice1/wsun377/.venvs/soccertwos_h100/bin/python
+
+export PYTHONPATH=$PWD${PYTHONPATH:+:$PYTHONPATH}
+export QUIET_CONSOLE=${QUIET_CONSOLE:-0}
+
+unset WARMSTART_CHECKPOINT
+unset RESTORE_CHECKPOINT
+unset TEAMMATE_CHECKPOINT
+unset TEAMMATE_BASE_CHECKPOINT
+
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
+export RUN_NAME=${RUN_NAME:-PPO_team_vs_baseline_shaping_scratch_512x512_$(date +%Y%m%d_%H%M%S)}
+export NUM_GPUS=${NUM_GPUS:-1}
+export NUM_WORKERS=${NUM_WORKERS:-8}
+export NUM_ENVS_PER_WORKER=${NUM_ENVS_PER_WORKER:-5}
+export FCNET_HIDDENS=${FCNET_HIDDENS:-512,512}
+export ROLLOUT_FRAGMENT_LENGTH=${ROLLOUT_FRAGMENT_LENGTH:-1000}
+export NUM_SGD_ITER=${NUM_SGD_ITER:-10}
+export BASELINE_PROB=${BASELINE_PROB:-1.0}
+export USE_REWARD_SHAPING=${USE_REWARD_SHAPING:-1}
+
+export TIMESTEPS_TOTAL=${TIMESTEPS_TOTAL:-20000000}
+export TIME_TOTAL_S=${TIME_TOTAL_S:-28000}
+export CHECKPOINT_FREQ=${CHECKPOINT_FREQ:-10}
+
+export EVAL_INTERVAL=${EVAL_INTERVAL:-10}
+export EVAL_EPISODES=${EVAL_EPISODES:-50}
+export EVAL_BASE_PORT=${EVAL_BASE_PORT:-65005}
+export EVAL_MAX_STEPS=${EVAL_MAX_STEPS:-1500}
+export EVAL_OPPONENTS=${EVAL_OPPONENTS:-baseline,random}
+export EVAL_TEAM0_MODULE=${EVAL_TEAM0_MODULE:-cs8803drl.deployment.trained_team_ray_agent}
+export EVAL_PYTHON_BIN=${EVAL_PYTHON_BIN:-$PYTHON_BIN}
+
+export BASE_PORT=${BASE_PORT:-65105}
+export LOG_LEVEL=${LOG_LEVEL:-INFO}
+export LOG_SYS_USAGE=${LOG_SYS_USAGE:-0}
+
+$PYTHON_BIN -u -m cs8803drl.training.train_ray_team_vs_baseline_shaping 2>&1

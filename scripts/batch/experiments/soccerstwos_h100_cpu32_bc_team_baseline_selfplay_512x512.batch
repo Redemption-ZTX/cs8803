@@ -1,0 +1,41 @@
+#!/bin/bash
+# Experiment Lane:
+# team-level behavior cloning from baseline self-play teacher dataset.
+
+#SBATCH -J soccer-exp-bc-team
+#SBATCH -A ece
+#SBATCH -p coe-gpu
+#SBATCH --qos=coe-ice
+#SBATCH -N 1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+#SBATCH --gres=gpu:h100:1
+#SBATCH --mem=100G
+#SBATCH -t 08:00:00
+#SBATCH -o /home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/slurm-logs/soccer-exp-bc-team-%j.out
+
+set -euo pipefail
+
+cd /home/hice1/wsun377/Desktop/cs8803drl
+
+PYTHON_BIN=/home/hice1/wsun377/.venvs/soccertwos_h100/bin/python
+
+export PYTHONPATH=$PWD${PYTHONPATH:+:$PYTHONPATH}
+
+export RUN_NAME=${RUN_NAME:-BC_team_baseline_selfplay_512x512_$(date +%Y%m%d_%H%M%S)}
+export LOCAL_DIR=${LOCAL_DIR:-./ray_results}
+export DATASET_DIR=${DATASET_DIR:-/home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/imitation/baseline_selfplay_team_20260413_022138}
+export NUM_GPUS=${NUM_GPUS:-1}
+export FCNET_HIDDENS=${FCNET_HIDDENS:-512,512}
+export FCNET_ACTIVATION=${FCNET_ACTIVATION:-relu}
+export BATCH_SIZE=${BATCH_SIZE:-4096}
+export EPOCHS=${EPOCHS:-30}
+export CHECKPOINT_FREQ=${CHECKPOINT_FREQ:-5}
+export VAL_FRACTION=${VAL_FRACTION:-0.10}
+export LR=${LR:-0.0003}
+export WEIGHT_DECAY=${WEIGHT_DECAY:-0.00001}
+export NUM_LOADER_WORKERS=${NUM_LOADER_WORKERS:-8}
+export SEED=${SEED:-42}
+export MAX_SAMPLES=${MAX_SAMPLES:-0}
+
+$PYTHON_BIN -u -m cs8803drl.training.train_bc_team_policy 2>&1
