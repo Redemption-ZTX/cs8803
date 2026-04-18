@@ -1,0 +1,789 @@
+{
+  "classification": {
+    "labels": [
+      "late_defensive_collapse",
+      "territory_loss",
+      "low_possession",
+      "opponent_forward_progress"
+    ],
+    "primary_label": "late_defensive_collapse"
+  },
+  "cumulative_team0_reward": -2.506428409129381,
+  "cumulative_team1_reward": 2.2547010142952204,
+  "episode_index": 86,
+  "final_score": null,
+  "final_team0_step_reward": -2.025376724243164,
+  "final_team1_step_reward": 1.983776767730713,
+  "final_winner": null,
+  "metrics": {
+    "mean_ball_x": -4.753534157975362,
+    "tail_mean_ball_x": -4.753534157975362,
+    "team0_possession_ratio": 0.3333333333333333,
+    "team0_progress_toward_goal": 0.0,
+    "team0_shaping_reward_sum": -0.5064284091293811,
+    "team1_possession_ratio": 0.6666666666666666,
+    "team1_progress_toward_goal": 6.806371916085482,
+    "team1_shaping_reward_sum": 0.2803009708076715
+  },
+  "outcome": "team1_win",
+  "sampled_trace": [
+    {
+      "ball_pos": [
+        0.03546212986111641,
+        2.4315338134765625
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.001,
+          "1": -0.001,
+          "2": -0.001,
+          "3": -0.001
+        },
+        "ball_dx": null,
+        "ball_found": true,
+        "ball_pos": [
+          0.03546212986111641,
+          2.4315338134765625
+        ],
+        "closest_agent_distance": null,
+        "closest_agent_id": null,
+        "deep_zone_team0_inner": false,
+        "deep_zone_team0_outer": false,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 1,
+        "player_count": 4,
+        "possessing_team": null,
+        "possession_confirmed": false,
+        "prev_ball_x": null,
+        "progress_reward_applied": false,
+        "progress_reward_gated": false,
+        "progress_toward_goal": null,
+        "scalar_reward_delta": 0.0
+      },
+      "score": null,
+      "step": 0,
+      "team0_centroid": [
+        -11.966672897338867,
+        -0.1364293098449707
+      ],
+      "team0_step_reward": -0.002,
+      "team1_centroid": [
+        6.930962324142456,
+        0.06873780488967896
+      ],
+      "team1_step_reward": -0.002,
+      "winner": null
+    },
+    {
+      "ball_pos": [
+        -12.30711841583252,
+        2.0159554481506348
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.03302684020996094,
+          "1": -0.03302684020996094,
+          "2": 0.025026840209960936,
+          "3": 0.025026840209960936
+        },
+        "ball_dx": -2.6026840209960938,
+        "ball_found": true,
+        "ball_pos": [
+          -12.30711841583252,
+          2.0159554481506348
+        ],
+        "closest_agent_distance": 1.930015198312246,
+        "closest_agent_id": 1,
+        "deep_zone_team0_inner": true,
+        "deep_zone_team0_outer": true,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 11,
+        "player_count": 4,
+        "possessing_team": 0,
+        "possession_confirmed": false,
+        "prev_ball_x": -9.704434394836426,
+        "progress_reward_applied": true,
+        "progress_reward_gated": false,
+        "progress_toward_goal": 0.0,
+        "scalar_reward_delta": 0.0
+      },
+      "score": null,
+      "step": 10,
+      "team0_centroid": [
+        -13.143808841705322,
+        0.4742015600204468
+      ],
+      "team0_step_reward": -0.06605368041992188,
+      "team1_centroid": [
+        -1.2421144247055054,
+        3.1965774297714233
+      ],
+      "team1_step_reward": 0.05005368041992187,
+      "winner": null
+    }
+  ],
+  "steps": 13,
+  "tail_trace": [
+    {
+      "ball_pos": [
+        0.03546212986111641,
+        2.4315338134765625
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.001,
+          "1": -0.001,
+          "2": -0.001,
+          "3": -0.001
+        },
+        "ball_dx": null,
+        "ball_found": true,
+        "ball_pos": [
+          0.03546212986111641,
+          2.4315338134765625
+        ],
+        "closest_agent_distance": null,
+        "closest_agent_id": null,
+        "deep_zone_team0_inner": false,
+        "deep_zone_team0_outer": false,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 1,
+        "player_count": 4,
+        "possessing_team": null,
+        "possession_confirmed": false,
+        "prev_ball_x": null,
+        "progress_reward_applied": false,
+        "progress_reward_gated": false,
+        "progress_toward_goal": null,
+        "scalar_reward_delta": 0.0
+      },
+      "score": null,
+      "step": 0,
+      "team0_centroid": [
+        -11.966672897338867,
+        -0.1364293098449707
+      ],
+      "team0_step_reward": -0.002,
+      "team1_centroid": [
+        6.930962324142456,
+        0.06873780488967896
+      ],
+      "team1_step_reward": -0.002,
+      "winner": null
+    },
+    {
+      "ball_pos": [
+        0.03546212986111641,
+        2.4315338134765625
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.001,
+          "1": -0.001,
+          "2": -0.001,
+          "3": -0.001
+        },
+        "ball_dx": 0.0,
+        "ball_found": true,
+        "ball_pos": [
+          0.03546212986111641,
+          2.4315338134765625
+        ],
+        "closest_agent_distance": 5.345513021742145,
+        "closest_agent_id": 3,
+        "deep_zone_team0_inner": false,
+        "deep_zone_team0_outer": false,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 2,
+        "player_count": 4,
+        "possessing_team": 1,
+        "possession_confirmed": false,
+        "prev_ball_x": 0.03546212986111641,
+        "progress_reward_applied": true,
+        "progress_reward_gated": false,
+        "progress_toward_goal": -0.0,
+        "scalar_reward_delta": 0.0
+      },
+      "score": null,
+      "step": 1,
+      "team0_centroid": [
+        -12.23686933517456,
+        -0.32530224323272705
+      ],
+      "team0_step_reward": -0.002,
+      "team1_centroid": [
+        6.6799235343933105,
+        0.2601323425769806
+      ],
+      "team1_step_reward": -0.002,
+      "winner": null
+    },
+    {
+      "ball_pos": [
+        0.03546212986111641,
+        2.4315338134765625
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.001,
+          "1": -0.001,
+          "2": -0.001,
+          "3": -0.001
+        },
+        "ball_dx": 0.0,
+        "ball_found": true,
+        "ball_pos": [
+          0.03546212986111641,
+          2.4315338134765625
+        ],
+        "closest_agent_distance": 5.128251554301797,
+        "closest_agent_id": 3,
+        "deep_zone_team0_inner": false,
+        "deep_zone_team0_outer": false,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 3,
+        "player_count": 4,
+        "possessing_team": 1,
+        "possession_confirmed": false,
+        "prev_ball_x": 0.03546212986111641,
+        "progress_reward_applied": true,
+        "progress_reward_gated": false,
+        "progress_toward_goal": -0.0,
+        "scalar_reward_delta": 0.0
+      },
+      "score": null,
+      "step": 2,
+      "team0_centroid": [
+        -12.595160007476807,
+        -0.45910733938217163
+      ],
+      "team0_step_reward": -0.002,
+      "team1_centroid": [
+        6.380718946456909,
+        0.5936985313892365
+      ],
+      "team1_step_reward": -0.002,
+      "winner": null
+    },
+    {
+      "ball_pos": [
+        0.03546212986111641,
+        2.4315338134765625
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.001,
+          "1": -0.001,
+          "2": -0.001,
+          "3": -0.001
+        },
+        "ball_dx": 0.0,
+        "ball_found": true,
+        "ball_pos": [
+          0.03546212986111641,
+          2.4315338134765625
+        ],
+        "closest_agent_distance": 4.47712425304485,
+        "closest_agent_id": 3,
+        "deep_zone_team0_inner": false,
+        "deep_zone_team0_outer": false,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 4,
+        "player_count": 4,
+        "possessing_team": 1,
+        "possession_confirmed": false,
+        "prev_ball_x": 0.03546212986111641,
+        "progress_reward_applied": true,
+        "progress_reward_gated": false,
+        "progress_toward_goal": -0.0,
+        "scalar_reward_delta": 0.0
+      },
+      "score": null,
+      "step": 3,
+      "team0_centroid": [
+        -12.87317705154419,
+        -0.406574547290802
+      ],
+      "team0_step_reward": -0.002,
+      "team1_centroid": [
+        5.691284656524658,
+        1.0253757983446121
+      ],
+      "team1_step_reward": -0.002,
+      "winner": null
+    },
+    {
+      "ball_pos": [
+        0.03546212986111641,
+        2.4315338134765625
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.001,
+          "1": -0.001,
+          "2": -0.001,
+          "3": -0.001
+        },
+        "ball_dx": 0.0,
+        "ball_found": true,
+        "ball_pos": [
+          0.03546212986111641,
+          2.4315338134765625
+        ],
+        "closest_agent_distance": 3.691122025722276,
+        "closest_agent_id": 3,
+        "deep_zone_team0_inner": false,
+        "deep_zone_team0_outer": false,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 5,
+        "player_count": 4,
+        "possessing_team": 1,
+        "possession_confirmed": false,
+        "prev_ball_x": 0.03546212986111641,
+        "progress_reward_applied": true,
+        "progress_reward_gated": false,
+        "progress_toward_goal": -0.0,
+        "scalar_reward_delta": 0.0
+      },
+      "score": null,
+      "step": 4,
+      "team0_centroid": [
+        -13.048084259033203,
+        -0.3614481985569
+      ],
+      "team0_step_reward": -0.002,
+      "team1_centroid": [
+        4.657236337661743,
+        1.4677638411521912
+      ],
+      "team1_step_reward": -0.002,
+      "winner": null
+    },
+    {
+      "ball_pos": [
+        0.03546212986111641,
+        2.4315338134765625
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.001,
+          "1": -0.001,
+          "2": -0.001,
+          "3": -0.001
+        },
+        "ball_dx": 0.0,
+        "ball_found": true,
+        "ball_pos": [
+          0.03546212986111641,
+          2.4315338134765625
+        ],
+        "closest_agent_distance": 2.626949889331411,
+        "closest_agent_id": 3,
+        "deep_zone_team0_inner": false,
+        "deep_zone_team0_outer": false,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 6,
+        "player_count": 4,
+        "possessing_team": 1,
+        "possession_confirmed": false,
+        "prev_ball_x": 0.03546212986111641,
+        "progress_reward_applied": true,
+        "progress_reward_gated": false,
+        "progress_toward_goal": -0.0,
+        "scalar_reward_delta": 0.0
+      },
+      "score": null,
+      "step": 5,
+      "team0_centroid": [
+        -13.160409450531006,
+        -0.22679811716079712
+      ],
+      "team0_step_reward": -0.002,
+      "team1_centroid": [
+        3.536640167236328,
+        1.9807370901107788
+      ],
+      "team1_step_reward": -0.002,
+      "winner": null
+    },
+    {
+      "ball_pos": [
+        0.03546212986111641,
+        2.4315338134765625
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.001,
+          "1": -0.001,
+          "2": -0.001,
+          "3": 0.001
+        },
+        "ball_dx": 0.0,
+        "ball_found": true,
+        "ball_pos": [
+          0.03546212986111641,
+          2.4315338134765625
+        ],
+        "closest_agent_distance": 1.076133395297936,
+        "closest_agent_id": 3,
+        "deep_zone_team0_inner": false,
+        "deep_zone_team0_outer": false,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 7,
+        "player_count": 4,
+        "possessing_team": 1,
+        "possession_confirmed": true,
+        "prev_ball_x": 0.03546212986111641,
+        "progress_reward_applied": true,
+        "progress_reward_gated": false,
+        "progress_toward_goal": -0.0,
+        "scalar_reward_delta": 0.0
+      },
+      "score": null,
+      "step": 6,
+      "team0_centroid": [
+        -13.25460433959961,
+        -0.13363736867904663
+      ],
+      "team0_step_reward": -0.002,
+      "team1_centroid": [
+        2.342619776725769,
+        2.4552626609802246
+      ],
+      "team1_step_reward": 0.0,
+      "winner": null
+    },
+    {
+      "ball_pos": [
+        -3.4713797569274902,
+        2.380899429321289
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.07113683773577213,
+          "1": -0.07113683773577213,
+          "2": 0.034068418867886065,
+          "3": 0.034068418867886065
+        },
+        "ball_dx": -3.5068418867886066,
+        "ball_found": true,
+        "ball_pos": [
+          -3.4713797569274902,
+          2.380899429321289
+        ],
+        "closest_agent_distance": 3.0311202090994347,
+        "closest_agent_id": 3,
+        "deep_zone_team0_inner": false,
+        "deep_zone_team0_outer": false,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 8,
+        "player_count": 4,
+        "possessing_team": 1,
+        "possession_confirmed": false,
+        "prev_ball_x": 0.03546212986111641,
+        "progress_reward_applied": true,
+        "progress_reward_gated": false,
+        "progress_toward_goal": 3.5068418867886066,
+        "scalar_reward_delta": 0.0
+      },
+      "score": null,
+      "step": 7,
+      "team0_centroid": [
+        -13.364973545074463,
+        -0.11263108253479004
+      ],
+      "team0_step_reward": -0.14227367547154426,
+      "team1_centroid": [
+        1.1910004019737244,
+        2.957572340965271
+      ],
+      "team1_step_reward": 0.06813683773577213,
+      "winner": null
+    },
+    {
+      "ball_pos": [
+        -6.770909786224365,
+        2.244607448577881
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.0669906005859375,
+          "1": -0.0669906005859375,
+          "2": 0.03199530029296875,
+          "3": 0.03199530029296875
+        },
+        "ball_dx": -3.299530029296875,
+        "ball_found": true,
+        "ball_pos": [
+          -6.770909786224365,
+          2.244607448577881
+        ],
+        "closest_agent_distance": 4.921618978050617,
+        "closest_agent_id": 3,
+        "deep_zone_team0_inner": false,
+        "deep_zone_team0_outer": false,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 9,
+        "player_count": 4,
+        "possessing_team": 1,
+        "possession_confirmed": false,
+        "prev_ball_x": -3.4713797569274902,
+        "progress_reward_applied": true,
+        "progress_reward_gated": false,
+        "progress_toward_goal": 3.299530029296875,
+        "scalar_reward_delta": 0.0
+      },
+      "score": null,
+      "step": 8,
+      "team0_centroid": [
+        -13.515491008758545,
+        -0.09411904215812683
+      ],
+      "team0_step_reward": -0.133981201171875,
+      "team1_centroid": [
+        0.18047058582305908,
+        3.2729488611221313
+      ],
+      "team1_step_reward": 0.0639906005859375,
+      "winner": null
+    },
+    {
+      "ball_pos": [
+        -9.704434394836426,
+        2.1234493255615234
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.03333524608612061,
+          "1": -0.03333524608612061,
+          "2": 0.028335246086120605,
+          "3": 0.028335246086120605
+        },
+        "ball_dx": -2.9335246086120605,
+        "ball_found": true,
+        "ball_pos": [
+          -9.704434394836426,
+          2.1234493255615234
+        ],
+        "closest_agent_distance": 3.3045478189153,
+        "closest_agent_id": 1,
+        "deep_zone_team0_inner": false,
+        "deep_zone_team0_outer": true,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 10,
+        "player_count": 4,
+        "possessing_team": 0,
+        "possession_confirmed": false,
+        "prev_ball_x": -6.770909786224365,
+        "progress_reward_applied": true,
+        "progress_reward_gated": false,
+        "progress_toward_goal": 0.0,
+        "scalar_reward_delta": 0.0
+      },
+      "score": null,
+      "step": 9,
+      "team0_centroid": [
+        -13.387120723724365,
+        0.09816521406173706
+      ],
+      "team0_step_reward": -0.06667049217224122,
+      "team1_centroid": [
+        -0.6342218518257141,
+        3.275766134262085
+      ],
+      "team1_step_reward": 0.05667049217224121,
+      "winner": null
+    },
+    {
+      "ball_pos": [
+        -12.30711841583252,
+        2.0159554481506348
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.03302684020996094,
+          "1": -0.03302684020996094,
+          "2": 0.025026840209960936,
+          "3": 0.025026840209960936
+        },
+        "ball_dx": -2.6026840209960938,
+        "ball_found": true,
+        "ball_pos": [
+          -12.30711841583252,
+          2.0159554481506348
+        ],
+        "closest_agent_distance": 1.930015198312246,
+        "closest_agent_id": 1,
+        "deep_zone_team0_inner": true,
+        "deep_zone_team0_outer": true,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 11,
+        "player_count": 4,
+        "possessing_team": 0,
+        "possession_confirmed": false,
+        "prev_ball_x": -9.704434394836426,
+        "progress_reward_applied": true,
+        "progress_reward_gated": false,
+        "progress_toward_goal": 0.0,
+        "scalar_reward_delta": 0.0
+      },
+      "score": null,
+      "step": 10,
+      "team0_centroid": [
+        -13.143808841705322,
+        0.4742015600204468
+      ],
+      "team0_step_reward": -0.06605368041992188,
+      "team1_centroid": [
+        -1.2421144247055054,
+        3.1965774297714233
+      ],
+      "team1_step_reward": 0.05005368041992187,
+      "winner": null
+    },
+    {
+      "ball_pos": [
+        -14.610750198364258,
+        1.9208128452301025
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.028036317825317382,
+          "1": -0.030036317825317384,
+          "2": 0.022036317825317384,
+          "3": 0.022036317825317384
+        },
+        "ball_dx": -2.3036317825317383,
+        "ball_found": true,
+        "ball_pos": [
+          -14.610750198364258,
+          1.9208128452301025
+        ],
+        "closest_agent_distance": 0.9980609708025787,
+        "closest_agent_id": 0,
+        "deep_zone_team0_inner": true,
+        "deep_zone_team0_outer": true,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 12,
+        "player_count": 4,
+        "possessing_team": 0,
+        "possession_confirmed": true,
+        "prev_ball_x": -12.30711841583252,
+        "progress_reward_applied": true,
+        "progress_reward_gated": false,
+        "progress_toward_goal": 0.0,
+        "scalar_reward_delta": 0.0
+      },
+      "score": null,
+      "step": 11,
+      "team0_centroid": [
+        -13.172276973724365,
+        0.7296915948390961
+      ],
+      "team0_step_reward": -0.058072635650634766,
+      "team1_centroid": [
+        -1.654706358909607,
+        3.2122877836227417
+      ],
+      "team1_step_reward": 0.04407263565063477,
+      "winner": null
+    },
+    {
+      "ball_pos": [
+        -15.179586410522461,
+        2.5139777660369873
+      ],
+      "reward_shaping": {
+        "applied_reward": {
+          "0": -0.01268836212158203,
+          "1": -0.01268836212158203,
+          "2": 0.0046883621215820315,
+          "3": 0.0046883621215820315
+        },
+        "ball_dx": -0.5688362121582031,
+        "ball_found": true,
+        "ball_pos": [
+          -15.179586410522461,
+          2.5139777660369873
+        ],
+        "closest_agent_distance": 1.5496843295881384,
+        "closest_agent_id": 0,
+        "deep_zone_team0_inner": true,
+        "deep_zone_team0_outer": true,
+        "deep_zone_team1_inner": false,
+        "deep_zone_team1_outer": false,
+        "defensive_survival_team0_active": false,
+        "defensive_survival_team1_active": false,
+        "episode_steps": 13,
+        "fast_loss_penalty_team0": 0.0,
+        "fast_loss_penalty_team1": 0.0,
+        "player_count": 4,
+        "possessing_team": 0,
+        "possession_confirmed": false,
+        "prev_ball_x": -14.610750198364258,
+        "progress_reward_applied": true,
+        "progress_reward_gated": false,
+        "progress_toward_goal": 0.0,
+        "scalar_reward_delta": 0.0,
+        "terminal_winner": null
+      },
+      "score": null,
+      "step": 12,
+      "team0_centroid": [
+        -13.341678619384766,
+        0.675497442483902
+      ],
+      "team0_step_reward": -2.025376724243164,
+      "team1_centroid": [
+        -1.935961663722992,
+        3.2794511318206787
+      ],
+      "team1_step_reward": 1.983776767730713,
+      "winner": null
+    }
+  ],
+  "team0_module": "cs8803drl.deployment.trained_shared_cc_agent",
+  "team1_module": "ceia_baseline_agent"
+}
