@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Monitor(*)",
+      "Bash(*)",
+      "Bash(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader)",
+      "Bash(curl -s --max-time 5 -o /dev/null -w \"%{http_code}\" https://github.com)",
+      "Bash(code --version)",
+      "Read(//home/hice1/wsun377/.vscode-server/extensions/**)",
+      "Bash(netstat -tlnp)",
+      "Bash(git clone:*)",
+      "Bash(shopt -s dotglob)",
+      "Bash(cp -r /tmp/cs8803_clone/* /home/hice1/wsun377/Desktop/cs8803drl/)",
+      "Bash(cp -r /tmp/cs8803_clone/.git /home/hice1/wsun377/Desktop/cs8803drl/)",
+      "Bash(cp -r /tmp/cs8803_clone/.gitignore /home/hice1/wsun377/Desktop/cs8803drl/)",
+      "Bash(rm -rf /tmp/cs8803_clone)",
+      "Bash(rm -rf /home/hice1/wsun377/Desktop/cs8803drl/.git)",
+      "Bash(cp -r /tmp/cs8803_bare /home/hice1/wsun377/Desktop/cs8803drl/.git)",
+      "Bash(rm -rf /tmp/cs8803_bare)",
+      "Bash(git config:*)",
+      "Bash(git checkout:*)",
+      "Bash(module avail:*)",
+      "Read(//home/hice1/wsun377/miniconda3/etc/profile.d/**)",
+      "Read(//home/hice1/wsun377/anaconda3/etc/profile.d/**)",
+      "Bash(module load:*)",
+      "Bash(conda create:*)",
+      "Bash(command -v codex)",
+      "Bash(npm --version)",
+      "Bash(module spider:*)",
+      "Bash(conda --version)",
+      "Bash(mkdir -p ~/.local)",
+      "Bash(curl -fsSL https://nodejs.org/dist/v20.18.1/node-v20.18.1-linux-x64.tar.xz)",
+      "Bash(tar -xJ -C ~/.local --strip-components=1)",
+      "Bash(export PATH=\"$HOME/.local/bin:$PATH\")",
+      "Bash(npm install:*)",
+      "Bash(codex --version)",
+      "Read(//home/hice1/wsun377/**)",
+      "Bash(ls -la /home/hice1/wsun377/Desktop/cs8803drl/agent_*)",
+      "Bash(conda info:*)"
+    ]
+  }
+}

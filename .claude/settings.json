@@ -1,3 +1,34 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(/home/hice1/wsun377/.conda/envs/soccertwos/bin/python -c ' *)",
+      "Bash(python3 -c \"import soccer_twos; print\\(soccer_twos.__file__\\)\")",
+      "Read(//tmp/soccer-twos-starter/**)",
+      "Bash(python3 -c \"import soccer_twos; import inspect; print\\(inspect.getsourcefile\\(soccer_twos.AgentInterface\\)\\)\")",
+      "Bash(grep -r \"observation_space\\\\|observation\" /tmp/soccer-twos-starter/*.py)",
+      "Bash(find /tmp/soccer-twos-starter -type f -name \"*.py\" -exec grep -l \"multiagent_player\\\\|teammate\\\\|share\" {} \\\\;)",
+      "Bash(python3 -c \"import sys; sys.path.insert\\(0, '/tmp/soccer-twos-starter'\\); help\\(__import__\\('soccer_twos'\\)\\)\")",
+      "WebFetch(domain:github.com)",
+      "Bash(xargs cat *)",
+      "Bash(squeue -u wsun377 -j 4915582,4915583,4915584)",
+      "Bash(scancel 4915582 4915583 4915584)",
+      "Bash(srun --jobid=4914156 --overlap hostname)",
+      "Bash(srun --jobid=4914156 --overlap nvidia-smi --query-gpu=index,utilization.gpu,memory.used,memory.total --format=csv)",
+      "Bash(srun --jobid=4914156 --overlap --output=/home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/slurm-logs/smoke/029A.out bash /tmp/smoke_029A.sh)",
+      "Bash(srun --jobid=4914156 --overlap --output=/home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/slurm-logs/smoke/029A.out bash /home/hice1/wsun377/Desktop/cs8803drl/scripts/smoke/029A_smoke.sh)",
+      "Read(//home/hice1/wsun377/Desktop/cs8803drl/**)",
+      "Bash(srun --jobid=4914156 --overlap --output=/home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/slurm-logs/smoke/029A_eval.out bash -c 'TRAINED_RAY_CHECKPOINT=/home/hice1/wsun377/Desktop/cs8803drl/ray_results/smoke_029A_20260417_115903/MAPPOVsBaselineTrainer_Soccer_6a61d_00000_0_2026-04-17_11-59-29/checkpoint_000001/checkpoint-1 /home/hice1/wsun377/.venvs/soccertwos_h100/bin/python scripts/eval/evaluate_official_suite.py --team0-module cs8803drl.deployment.trained_shared_cc_agent --opponents baseline -n 50 --checkpoint /home/hice1/wsun377/Desktop/cs8803drl/ray_results/smoke_029A_20260417_115903/MAPPOVsBaselineTrainer_Soccer_6a61d_00000_0_2026-04-17_11-59-29/checkpoint_000001/checkpoint-1 2>&1')",
+      "Bash(srun --jobid=4914156 --overlap --output=/home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/slurm-logs/smoke/029B.out bash /home/hice1/wsun377/Desktop/cs8803drl/scripts/smoke/029B_smoke.sh)",
+      "Bash(srun --jobid=4914156 --overlap --output=/home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/slurm-logs/smoke/029C.out bash /home/hice1/wsun377/Desktop/cs8803drl/scripts/smoke/029C_smoke.sh)",
+      "Bash(tmux ls *)",
+      "Bash(grep -r \"BASE_PORT=\\\\${BASE_PORT\" /home/hice1/wsun377/Desktop/cs8803drl/scripts/batch/)",
+      "Bash(awk -F: '{print $NF}')",
+      "Bash(awk -F'-' '{print $2}')",
+      "Bash(awk -F'}' '{print $1}')",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('summary team0_wins:', d.get\\('team0_wins'\\), 'team1_wins:', d.get\\('team1_wins'\\)\\)\")",
+      "Bash(python3)",
+      "Bash(awk -Fcheckpoint_ '{print $NF}')"
+    ]
+  },
   "showThinkingSummaries": true
 }
