@@ -52,6 +52,8 @@ from cs8803drl.core.utils import create_rllib_env
 from cs8803drl.training.train_ray_team_vs_random_shaping import (
     _build_reward_shaping_config,
     _console_print,
+    _resolve_resume_checkpoint_env,
+    _warmstart_on_resume_enabled,
     _env_bool,
     _env_float,
     _env_int,
@@ -96,11 +98,11 @@ def _append_warmstart_summary(message):
 
 
 def _after_init_warmstart(trainer):
-    restore_path = os.environ.get("RESTORE_CHECKPOINT", "").strip()
-    if restore_path and not _env_bool("WARMSTART_ON_RESTORE", False):
+    resume_path = _resolve_resume_checkpoint_env()
+    if resume_path and not _warmstart_on_resume_enabled(False):
         _append_warmstart_summary(
-            f"status: skipped (restore_checkpoint set, WARMSTART_ON_RESTORE=0)\n"
-            f"restore_checkpoint: {restore_path}"
+            f"status: skipped (resume_checkpoint set, WARMSTART_ON_RESUME=0)\n"
+            f"resume_checkpoint: {resume_path}"
         )
         return
 
@@ -168,7 +170,7 @@ def _validate_base_port(*, base_port, num_workers, num_envs_per_worker):
 def _print_header(
     *,
     run_dir,
-    restore_path,
+    resume_path,
     bc_warmstart_path,
     warmstart_path,
     timesteps_total,
@@ -198,7 +200,7 @@ def _print_header(
     _console_print("")
     _console_print("Training Configuration")
     _console_print(f"  run_dir:              {run_dir}")
-    _console_print(f"  restore_checkpoint:   {restore_path or 'None'}")
+    _console_print(f"  resume_checkpoint:    {resume_path or 'None'}")
     _console_print(f"  bc_warmstart_ckpt:    {bc_warmstart_path or 'None'}")
     _console_print(f"  warmstart_checkpoint: {warmstart_path or 'None'}")
     _console_print(f"  target_timesteps:     {timesteps_total:,}")
@@ -330,9 +332,9 @@ def main():
 
     warmstart_path = os.environ.get("WARMSTART_CHECKPOINT", "").strip() or None
     bc_warmstart_path = os.environ.get("BC_WARMSTART_CHECKPOINT", "").strip() or None
-    restore_path = os.environ.get("RESTORE_CHECKPOINT", "").strip() or None
-    if restore_path:
-        restore_path = sanitize_checkpoint_for_restore(restore_path)
+    resume_path = _resolve_resume_checkpoint_env() or None
+    if resume_path:
+        resume_path = sanitize_checkpoint_for_restore(resume_path)
 
     timesteps_total = _env_int("TIMESTEPS_TOTAL", DEFAULT_TIMESTEPS_TOTAL)
     time_total_s = _env_int("TIME_TOTAL_S", DEFAULT_TIME_TOTAL_S)
@@ -361,6 +363,25 @@ def main():
     if reward_shaping:
         base_env_config["reward_shaping"] = reward_shaping
 
+    # snapshot-036 Path C: optional learned reward shaping layered on top of v2.
+    # Activated via env var LEARNED_REWARD_MODEL_PATH (plus optional WEIGHT, APPLY_TO_TEAM1).
+    # snapshot-036D adds LEARNED_REWARD_WARMUP_STEPS for per-env step-counter warmup
+    # (skip shaping for first N env steps; see snapshot-036d §2.3).
+    learned_reward_model_path = os.environ.get("LEARNED_REWARD_MODEL_PATH", "").strip()
+    if learned_reward_model_path:
+        base_env_config["learned_reward_shaping"] = {
+            "model_path": learned_reward_model_path,
+            "weight": _env_float("LEARNED_REWARD_SHAPING_WEIGHT", 0.01),
+            "team0_agent_ids": (0, 1),
+            "apply_to_team1": _env_bool("LEARNED_REWARD_APPLY_TO_TEAM1", False),
+            "warmup_steps": _env_int("LEARNED_REWARD_WARMUP_STEPS", 0),
+        }
+        _console_print(
+            f"[learned-reward] enabled: {learned_reward_model_path} "
+            f"(weight={base_env_config['learned_reward_shaping']['weight']}, "
+            f"warmup_steps={base_env_config['learned_reward_shaping']['warmup_steps']})"
+        )
+
     temp_env = create_rllib_env(
         {
             **base_env_config,
@@ -384,6 +405,23 @@ def main():
 
     callbacks_cls = FillInTeammateActionsAndAuxLabels if aux_teammate_head else FillInTeammateActions
     custom_model_name = TEAMMATE_AUX_MODEL_NAME if aux_teammate_head else SHARED_CC_MODEL_NAME
+
+    # snapshot-039: opt-in adaptive reward refresh. When enabled, compose
+    # AdaptiveRewardCallback with the existing teammate-action callback via
+    # multi-inheritance. Methods that both define chain through MRO.
+    adaptive_refresh_enabled = _env_bool("LEARNED_REWARD_ADAPTIVE_REFRESH", False)
+    if adaptive_refresh_enabled and learned_reward_model_path:
+        from cs8803drl.imitation.adaptive_reward_callback import AdaptiveRewardCallback
+
+        class CombinedCallback(AdaptiveRewardCallback, callbacks_cls):
+            pass
+
+        callbacks_cls = CombinedCallback
+        _console_print(
+            f"[adaptive-reward] enabled: refresh_every="
+            f"{os.environ.get('ADAPTIVE_REFRESH_EVERY', '30')} "
+            f"loss={os.environ.get('ADAPTIVE_REFRESH_LOSS', 'bt')}"
+        )
 
     config = {
         "num_gpus": num_gpus,
@@ -438,12 +476,12 @@ def main():
     os.makedirs(run_dir, exist_ok=True)
     with open(warmstart_summary_path, "w", encoding="utf-8") as handle:
         handle.write(f"run_dir: {run_dir}\n")
-        handle.write(f"restore_checkpoint: {restore_path or 'None'}\n")
+        handle.write(f"resume_checkpoint: {resume_path or 'None'}\n")
         handle.write(f"bc_warmstart_ckpt: {bc_warmstart_path or 'None'}\n")
         handle.write(f"warmstart_checkpoint: {warmstart_path or 'None'}\n")
     _print_header(
         run_dir=run_dir,
-        restore_path=restore_path,
+        resume_path=resume_path,
         bc_warmstart_path=bc_warmstart_path,
         warmstart_path=warmstart_path,
         timesteps_total=timesteps_total,
@@ -515,7 +553,7 @@ def main():
             checkpoint_freq=checkpoint_freq,
             checkpoint_at_end=True,
             local_dir=local_dir,
-            restore=restore_path,
+            restore=resume_path,
             verbose=0,
             raise_on_failed_trial=False,
         )

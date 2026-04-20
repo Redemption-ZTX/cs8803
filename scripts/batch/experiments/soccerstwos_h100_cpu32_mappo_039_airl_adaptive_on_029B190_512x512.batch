@@ -1,0 +1,123 @@
+#!/bin/bash
+# Experiment Lane:
+# SNAPSHOT-039: AIRL-inspired adaptive reward learning.
+#
+# Layers on top of 036D's stability fix:
+#   036D fixes: λ=0.003, finite-check+clip, 10-iter warmup
+# Plus:
+#   Adaptive refresh every 30 iter (~10 refreshes over 300 iter)
+#   Bradley-Terry (pairwise) loss in place of BCE at refresh time
+#   Hot-swap D weights via Ray callback foreach_worker broadcast
+#
+# Test: does periodic D refresh + B-T loss (adaptive, MaxEnt-flavored)
+# fix the reward-gaming pathology we saw in 036C@270?
+#
+# Parallel with 036D. Different GPU slot, different ports. Shares
+# reward_model.pt warmstart + 029B@190 policy warmstart.
+
+#SBATCH -J soccer-exp-039-airl-adaptive-on-029B
+#SBATCH -A ece
+#SBATCH -p coe-gpu
+#SBATCH --qos=coe-ice
+#SBATCH -N 1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+#SBATCH --gres=gpu:h100:1
+#SBATCH --mem=100G
+#SBATCH -t 08:00:00
+#SBATCH -o /home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/slurm-logs/soccer-exp-039-airl-adaptive-on-029B-%j.out
+
+set -euo pipefail
+
+cd /home/hice1/wsun377/Desktop/cs8803drl
+
+# Dynamic port offset (pattern from 038 lanes) to avoid same-node collisions.
+PORT_SEED=${PORT_SEED:-${SLURM_JOB_ID:-$$}}
+PORT_OFFSET=$(( (PORT_SEED % 20) * 100 ))
+
+PYTHON_BIN=/home/hice1/wsun377/.venvs/soccertwos_h100/bin/python
+
+export PYTHONPATH=$PWD${PYTHONPATH:+:$PYTHONPATH}
+export QUIET_CONSOLE=${QUIET_CONSOLE:-0}
+
+unset RESTORE_CHECKPOINT
+unset TEAMMATE_CHECKPOINT
+unset TEAMMATE_BASE_CHECKPOINT
+unset BC_WARMSTART_CHECKPOINT
+
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+
+# warm-start from 029B@190 (same as 036C / 036D)
+export WARMSTART_CHECKPOINT=${WARMSTART_CHECKPOINT:-/home/hice1/wsun377/Desktop/cs8803drl/ray_results/PPO_mappo_029B_bwarm170_to_v2_512x512_formal/MAPPOVsBaselineTrainer_Soccer_457ea_00000_0_2026-04-17_12-12-46/checkpoint_000190/checkpoint-190}
+
+# shared learned-reward config (same as 036D stability baseline)
+export LEARNED_REWARD_MODEL_PATH=${LEARNED_REWARD_MODEL_PATH:-/home/hice1/wsun377/Desktop/cs8803drl/ray_results/reward_models/036_stage2/reward_model.pt}
+export LEARNED_REWARD_SHAPING_WEIGHT=${LEARNED_REWARD_SHAPING_WEIGHT:-0.003}
+export LEARNED_REWARD_WARMUP_STEPS=${LEARNED_REWARD_WARMUP_STEPS:-10000}
+export LEARNED_REWARD_APPLY_TO_TEAM1=${LEARNED_REWARD_APPLY_TO_TEAM1:-0}
+
+# 039-specific: enable adaptive refresh
+export LEARNED_REWARD_ADAPTIVE_REFRESH=${LEARNED_REWARD_ADAPTIVE_REFRESH:-1}
+export ADAPTIVE_REFRESH_EVERY=${ADAPTIVE_REFRESH_EVERY:-30}
+export ADAPTIVE_REFRESH_STEPS=${ADAPTIVE_REFRESH_STEPS:-2000}
+export ADAPTIVE_REFRESH_LOSS=${ADAPTIVE_REFRESH_LOSS:-bt}
+export ADAPTIVE_REFRESH_LR=${ADAPTIVE_REFRESH_LR:-3e-4}
+export ADAPTIVE_MIN_ONLINE_PAIRS=${ADAPTIVE_MIN_ONLINE_PAIRS:-0}
+export ADAPTIVE_LABEL_VERSION=${ADAPTIVE_LABEL_VERSION:-v2}
+# explicit default dirs as ABSOLUTE paths — Ray workers have a different cwd
+# than the launcher, so relative paths here WILL FAIL. First run of 039 crashed
+# at iter 30 because of this.
+export ADAPTIVE_OFFLINE_TRAJ_DIRS=${ADAPTIVE_OFFLINE_TRAJ_DIRS:-"/home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/trajectories/036_stage1/029B_190,/home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/trajectories/036_stage1/025b_080,/home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/trajectories/036_stage1/017_2100,/home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/trajectories/036_stage1/028A_1220"}
+
+export RUN_NAME=${RUN_NAME:-039_mappo_airl_adaptive_on_029B190_512x512_$(date +%Y%m%d_%H%M%S)}
+export NUM_GPUS=${NUM_GPUS:-1}
+export NUM_WORKERS=${NUM_WORKERS:-8}
+export NUM_ENVS_PER_WORKER=${NUM_ENVS_PER_WORKER:-5}
+export FCNET_HIDDENS=${FCNET_HIDDENS:-512,512}
+export ROLLOUT_FRAGMENT_LENGTH=${ROLLOUT_FRAGMENT_LENGTH:-1000}
+export NUM_SGD_ITER=${NUM_SGD_ITER:-4}
+export SGD_MINIBATCH_SIZE=${SGD_MINIBATCH_SIZE:-2048}
+export LR=${LR:-0.0001}
+export CLIP_PARAM=${CLIP_PARAM:-0.15}
+
+# disable field-role binding
+export SHAPING_FIELD_ROLE_BINDING=${SHAPING_FIELD_ROLE_BINDING:-0}
+
+# v2 shaping
+export USE_REWARD_SHAPING=${USE_REWARD_SHAPING:-1}
+export SHAPING_TIME_PENALTY=${SHAPING_TIME_PENALTY:-0.001}
+export SHAPING_BALL_PROGRESS=${SHAPING_BALL_PROGRESS:-0.01}
+export SHAPING_OPP_PROGRESS_PENALTY=${SHAPING_OPP_PROGRESS_PENALTY:-0.01}
+export SHAPING_POSSESSION_BONUS=${SHAPING_POSSESSION_BONUS:-0.002}
+export SHAPING_POSSESSION_DIST=${SHAPING_POSSESSION_DIST:-1.25}
+export SHAPING_PROGRESS_REQUIRES_POSSESSION=${SHAPING_PROGRESS_REQUIRES_POSSESSION:-0}
+export SHAPING_DEEP_ZONE_OUTER_THRESHOLD=${SHAPING_DEEP_ZONE_OUTER_THRESHOLD:--8}
+export SHAPING_DEEP_ZONE_OUTER_PENALTY=${SHAPING_DEEP_ZONE_OUTER_PENALTY:-0.003}
+export SHAPING_DEEP_ZONE_INNER_THRESHOLD=${SHAPING_DEEP_ZONE_INNER_THRESHOLD:--12}
+export SHAPING_DEEP_ZONE_INNER_PENALTY=${SHAPING_DEEP_ZONE_INNER_PENALTY:-0.003}
+
+# explicitly disable PBRS (this is v2)
+export SHAPING_GOAL_PROXIMITY_SCALE=${SHAPING_GOAL_PROXIMITY_SCALE:-0.0}
+
+export TIMESTEPS_TOTAL=${TIMESTEPS_TOTAL:-12000000}
+export MAX_ITERATIONS=${MAX_ITERATIONS:-300}
+export TIME_TOTAL_S=${TIME_TOTAL_S:-28800}   # 8h to allow for 10 refreshes
+export CHECKPOINT_FREQ=${CHECKPOINT_FREQ:-10}
+
+export EVAL_INTERVAL=${EVAL_INTERVAL:-10}
+export EVAL_EPISODES=${EVAL_EPISODES:-50}
+# Dynamic port allocation — 039 anchor at 60xxx (distinct shelf from 036D 59xxx).
+# With PORT_OFFSET 0-1900, effective 60005-61944, clear of 036D/038/036C.
+export EVAL_BASE_PORT=${EVAL_BASE_PORT:-$((60005 + PORT_OFFSET))}
+export EVAL_MAX_STEPS=${EVAL_MAX_STEPS:-1500}
+export EVAL_OPPONENTS=${EVAL_OPPONENTS:-baseline,random}
+export EVAL_TEAM0_MODULE=${EVAL_TEAM0_MODULE:-cs8803drl.deployment.trained_shared_cc_agent}
+export EVAL_PYTHON_BIN=${EVAL_PYTHON_BIN:-$PYTHON_BIN}
+
+export BASE_PORT=${BASE_PORT:-$((60105 + PORT_OFFSET))}
+export LOG_LEVEL=${LOG_LEVEL:-INFO}
+export LOG_SYS_USAGE=${LOG_SYS_USAGE:-0}
+
+$PYTHON_BIN -u -m cs8803drl.training.train_ray_mappo_vs_baseline 2>&1
