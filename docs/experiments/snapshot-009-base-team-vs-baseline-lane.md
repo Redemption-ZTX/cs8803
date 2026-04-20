@@ -116,7 +116,7 @@
 
 所以 team-level 的单步 reward 天然就是两名球员 reward 的和，量级接近 `[-2, 2]` 是环境设计带来的结果。
 
-更关键的是，RLlib 训练里看的 `episode_reward_mean` 是整局累计回报；官方 evaluator 的 `win_rate` 则是按每局最终 reward 的正负号计胜负，见 [evaluate.py](../../../.conda/envs/soccertwos/lib/python3.8/site-packages/soccer_twos/evaluate.py)。  
+更关键的是，RLlib 训练里看的 `episode_reward_mean` 是整局累计回报；官方 evaluator 的 `win_rate` 则是按每局最终 reward 的正负号计胜负，见 [evaluate.py](../../../.conda/envs/soccertwos/lib/python3.8/site-packages/soccer_twos/evaluate.py)。
 因此：
 
 - `episode_reward_mean ≈ 2.0`
@@ -145,7 +145,7 @@ Base-D / Base-E 跑完后曾报：
 
 - `_print_progress() got an unexpected keyword argument 'iteration'`
 
-这是训练收尾阶段的 summary 调用参数写错，不影响 checkpoint 产出，但会让 run 看起来像“异常结束”。  
+这是训练收尾阶段的 summary 调用参数写错，不影响 checkpoint 产出，但会让 run 看起来像“异常结束”。
 该问题已修复于：
 
 - [train_ray_base_team_vs_baseline.py](../../cs8803drl/training/train_ray_base_team_vs_baseline.py)

@@ -511,7 +511,7 @@ official evaluator 的约束比“尽量对齐”更硬：
 
 首轮异常的解释需要从“单一主因”收紧成“**主因优先级排序**”：
 
-1. **当前最强主因假设是 obs tail 未归一化**  
+1. **当前最强主因假设是 obs tail 未归一化**
    smoke 已确认训练期 actor 确实吃到真实 teammate state + time，但这些新增 tail 的量级是：
    - 原始 `own_obs`：抽样观测全部落在 `[0,1]`
    - teammate `x/y/vx/vy`：直接使用 field 单位，约 `±15 / ±7 / ±8 / ±8`
@@ -519,10 +519,10 @@ official evaluator 的约束比“尽量对齐”更硬：
 
    这意味着新增的 5 维 tail 与原始 336 维特征之间存在明显的动态范围错配。对于 scratch PPO 来说，这会让第一层更容易被高量级的 teammate 位置/速度维度主导，进而压制原始 rays / ball / opponent 相关信号。
 
-2. **Train-eval 表征分裂是真问题，但现在更像次因**  
+2. **Train-eval 表征分裂是真问题，但现在更像次因**
    decoder 误差仍然非常大（`mean_l2_err = 35.71`），因此 official-style deployment 路径当然不可信；但 `021b` 的 local true-info 诊断只有 `0.135`，说明即使把评测改回真实 teammate state，策略也没有恢复。这把 decoder 分裂从“唯一主因”降成了“存在但非主因”的位置。
 
-3. **obs 假设没有被整体否决，但“直接拼 raw teammate+time”这条具体实现路线失败**  
+3. **obs 假设没有被整体否决，但“直接拼 raw teammate+time”这条具体实现路线失败**
    当前数据支持的最稳结论不是“teammate 感知完全没用”，而是：**最朴素的 direct-concat 版本在未归一化条件下没有学成。**
 
 ### 12.4 verdict 落定

@@ -201,7 +201,7 @@
 - `gamma = 0.99`
 - `lambda = 0.95`
 
-对终局稀疏信号的回传是足够覆盖大多数 episode 的。  
+对终局稀疏信号的回传是足够覆盖大多数 episode 的。
 因此，`late_defensive_collapse` 更可能是：
 
 - 稀少防守状态下缺乏足够明确的导向信号

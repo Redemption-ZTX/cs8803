@@ -324,13 +324,13 @@ BC 在 team-level 学到的是 baseline 的联合动作分布。但 baseline 本
 
 这组结果支持一个更稳的 readout：
 
-1. `028A` 的确比 `027A` 更强。  
+1. `028A` 的确比 `027A` 更强。
    `027A` 的 best official 只有 `0.804`，而 `028A` 至少在 late window 里打出了真实的 `0.81~0.84` 区间。
 
-2. internal eval 明显高估了 `028A` 的 late spike。  
+2. internal eval 明显高估了 `028A` 的 late spike。
    典型例子是 `1220: 0.94 internal -> 0.844 official -> 0.796 capture`，说明这不是一个可以直接当主候选的“稳定冠军点”。
 
-3. `028A` 更可信的主候选应收口到 **[checkpoint-1060](../../ray_results/PPO_team_level_bc_bootstrap_028A_512x512_formal/TeamVsBaselineShapingPPOTrainer_Soccer_85a0f_00000_0_2026-04-17_19-16-54/checkpoint_001060/checkpoint-1060)**，而不是 official 峰值 `1220`。  
+3. `028A` 更可信的主候选应收口到 **[checkpoint-1060](../../ray_results/PPO_team_level_bc_bootstrap_028A_512x512_formal/TeamVsBaselineShapingPPOTrainer_Soccer_85a0f_00000_0_2026-04-17_19-16-54/checkpoint_001060/checkpoint-1060)**，而不是 official 峰值 `1220`。
    `1060` 的 official/capture gap 最小，且 `poor_conversion` 明显更低，是更平衡的 team-level BC warm-start 候选点。
 
 因此，`028A` 当前最稳的首轮结论是：
@@ -345,19 +345,20 @@ BC 在 team-level 学到的是 baseline 的联合动作分布。但 baseline 本
 - [checkpoint-1060](../../ray_results/PPO_team_level_bc_bootstrap_028A_512x512_formal/TeamVsBaselineShapingPPOTrainer_Soccer_85a0f_00000_0_2026-04-17_19-16-54/checkpoint_001060/checkpoint-1060) vs [027A@650](../../ray_results/PPO_team_level_v2_scratch_768x512_20260417_095059/TeamVsBaselineShapingPPOTrainer_Soccer_8384d_00000_0_2026-04-17_09-51-20/checkpoint_000650/checkpoint-650) = `0.592`
 - [checkpoint-1060](../../ray_results/PPO_team_level_bc_bootstrap_028A_512x512_formal/TeamVsBaselineShapingPPOTrainer_Soccer_85a0f_00000_0_2026-04-17_19-16-54/checkpoint_001060/checkpoint-1060) vs [017@2100](../../ray_results/PPO_mappo_vs_baseline_shaping_v2_bc_player_512x512_main_rerun2/MAPPOVsBaselineTrainer_Soccer_e53af_00000_0_2026-04-14_21-46-18/checkpoint_002100/checkpoint-2100) = `0.432`
 - [checkpoint-1060](../../ray_results/PPO_team_level_bc_bootstrap_028A_512x512_formal/TeamVsBaselineShapingPPOTrainer_Soccer_85a0f_00000_0_2026-04-17_19-16-54/checkpoint_001060/checkpoint-1060) vs [025b@80](../../ray_results/PPO_mappo_field_role_binding_bc2100_stable_512x512_20260417_060418/MAPPOVsBaselineTrainer_Soccer_da95d_00000_0_2026-04-17_06-04-42/checkpoint_000080/checkpoint-80) = `0.432`
+- [checkpoint-1060](../../ray_results/PPO_team_level_bc_bootstrap_028A_512x512_formal/TeamVsBaselineShapingPPOTrainer_Soccer_85a0f_00000_0_2026-04-17_19-16-54/checkpoint_001060/checkpoint-1060) vs [029B@190](../../ray_results/PPO_mappo_029B_bwarm170_to_v2_512x512_formal/MAPPOVsBaselineTrainer_Soccer_457ea_00000_0_2026-04-17_12-12-46/checkpoint_000190/checkpoint-190) = `0.462`
 - [checkpoint-1220](../../ray_results/PPO_team_level_bc_bootstrap_028A_512x512_formal/TeamVsBaselineShapingPPOTrainer_Soccer_85a0f_00000_0_2026-04-17_19-16-54/checkpoint_001220/checkpoint-1220) vs [017@2100](../../ray_results/PPO_mappo_vs_baseline_shaping_v2_bc_player_512x512_main_rerun2/MAPPOVsBaselineTrainer_Soccer_e53af_00000_0_2026-04-14_21-46-18/checkpoint_002100/checkpoint-2100) = `0.466`
 - [checkpoint-1220](../../ray_results/PPO_team_level_bc_bootstrap_028A_512x512_formal/TeamVsBaselineShapingPPOTrainer_Soccer_85a0f_00000_0_2026-04-17_19-16-54/checkpoint_001220/checkpoint-1220) vs [025b@80](../../ray_results/PPO_mappo_field_role_binding_bc2100_stable_512x512_20260417_060418/MAPPOVsBaselineTrainer_Soccer_da95d_00000_0_2026-04-17_06-04-42/checkpoint_000080/checkpoint-80) = `0.428`
 - [checkpoint-1220](../../ray_results/PPO_team_level_bc_bootstrap_028A_512x512_formal/TeamVsBaselineShapingPPOTrainer_Soccer_85a0f_00000_0_2026-04-17_19-16-54/checkpoint_001220/checkpoint-1220) vs [029B@190](../../ray_results/PPO_mappo_029B_bwarm170_to_v2_512x512_formal/MAPPOVsBaselineTrainer_Soccer_457ea_00000_0_2026-04-17_12-12-46/checkpoint_000190/checkpoint-190) = `0.428`
 
 这些对打把 `028A` 的最终位置钉得很清楚：
 
-1. `028A` 的确明显优于 `027A`。  
+1. `028A` 的确明显优于 `027A`。
    `1060 vs 027A@650 = 0.592`，说明 BC warm-start 在 team-level PPO 上带来了真实且可重复的增益，而不是只把 official baseline 分数轻微抬高。
 
-2. `028A` 还没有进入冠军位讨论。  
-   不管取更稳的 `1060` 还是 official 峰值 `1220`，对 [017](snapshot-017-bc-to-mappo-bootstrap.md)、[025b](snapshot-025b-bc-champion-field-role-binding-stability-tune.md)、[029B](snapshot-029-post-025b-sota-extension.md) 的 H2H 都是明显负值。
+2. `028A` 还没有进入冠军位讨论。
+   不管取更稳的 `1060` 还是 official 峰值 `1220`，对 [017](snapshot-017-bc-to-mappo-bootstrap.md)、[025b](snapshot-025b-bc-champion-field-role-binding-stability-tune.md)、[029B](snapshot-029-post-025b-sota-extension.md) 的 H2H 都是明显负值。新增的 `1060 vs 029B@190 = 0.462` 也说明 `029B` 的优势不能简单归因于“team-level base 本身较弱”。
 
-3. `1060` 作为主候选比 `1220` 更合理。  
+3. `1060` 作为主候选比 `1220` 更合理。
    `1220` 虽然给出 `0.844` 的 official 峰值，但 failure capture 和 H2H 都不支持把它当成稳定主点；`1060` 的 official/capture 对齐最好，而且在 H2H 中也比 `1220` 更干净。
 
 因此，`028A` 的首轮正式 verdict 现在可以收成：
@@ -365,6 +366,7 @@ BC 在 team-level 学到的是 baseline 的联合动作分布。但 baseline 本
 - **team-level BC warm-start 明确成立**
 - **它真实地优于 team-level scratch（027）**
 - **它当前仍低于 `017 / 025b / 029B` 这些 per-agent 强线**
+- **其中 `1060 vs 029B@190 = 0.462` 进一步说明：当前 team-level BC base 还没有接近 `029B` 这条 per-agent 强挑战者**
 - **`028A` 的最佳身份是“team-level 主线已验证可行，但首轮还不是冠军挑战成功”**
 
 ## 12. 相关

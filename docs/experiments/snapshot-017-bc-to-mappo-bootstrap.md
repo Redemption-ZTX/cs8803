@@ -201,7 +201,7 @@
 
 本轮已经完成两步最小烟测：
 
-1. `player-BC` smoke  
+1. `player-BC` smoke
    运行目录：
    - [BC_player_smoke_20260414](../../ray_results/BC_player_smoke_20260414)
    输出 checkpoint：
@@ -216,7 +216,7 @@
    这一步确认：
    - player-level BC checkpoint 的结构已经和 MAPPO shared actor 对齐。
 
-2. `BC -> MAPPO` warm-start smoke  
+2. `BC -> MAPPO` warm-start smoke
    运行目录：
    - [PPO_mappo_bc_player_smoke_20260414](../../ray_results/PPO_mappo_bc_player_smoke_20260414)
    输出 checkpoint：

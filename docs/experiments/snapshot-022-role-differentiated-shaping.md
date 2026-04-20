@@ -192,7 +192,7 @@
 
 | 触发条件 | 解读 |
 |---|---|
-| 500-ep WR < 0.76 | role-diff 反而损害性能（角色分化过激）| 
+| 500-ep WR < 0.76 | role-diff 反而损害性能（角色分化过激）|
 | `low_poss` ≥ 20% 且 WR < 0.80 | B 假设被否决，问题在 obs 或别处 |
 | 行为 specialization 未出现（Agent 0 mean x ≈ Agent 1 mean x）| role-diff 信号不够强，需要更激进分化 |
 
