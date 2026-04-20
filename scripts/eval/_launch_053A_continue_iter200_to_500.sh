@@ -1,0 +1,80 @@
+#!/bin/bash
+# 053A-continue: resume from 053A iter 200 with same v2+PBRS combo, extend +300 iter (200→500).
+# Hypothesis: 053A peak (1000ep ~0.890) was at last ckpt iter 190 with 50ep WR=0.96 still ascending
+# → training was cut prematurely. Continue should push peak higher.
+# 053A_continue uses NEW run dir to avoid overwriting original ckpts.
+set -euo pipefail
+cd /home/hice1/wsun377/Desktop/cs8803drl
+export LOCAL_DIR=/storage/ice1/5/1/wsun377/ray_results_scratch
+PYTHON_BIN=/home/hice1/wsun377/.venvs/soccertwos_h100/bin/python
+
+export PYTHONPATH=$PWD${PYTHONPATH:+:$PYTHONPATH}
+export QUIET_CONSOLE=${QUIET_CONSOLE:-0}
+
+unset WARMSTART_CHECKPOINT BC_WARMSTART_CHECKPOINT TEAMMATE_CHECKPOINT TEAMMATE_BASE_CHECKPOINT
+unset AUX_TEAM_ACTION_HEAD AUX_TEAM_ACTION_WEIGHT AUX_TEAM_ACTION_HIDDEN
+unset TEAM_OPPONENT_CHECKPOINT
+unset LEARNED_REWARD_MODEL_PATH
+unset TEAM_TRANSFORMER TEAM_TRANSFORMER_MIN TEAM_TRANSFORMER_MHA TEAM_CROSS_AGENT_ATTN
+unset TEAM_DISTILL_KL TEAM_DISTILL_TEACHER_CHECKPOINT TEAM_DISTILL_ENSEMBLE_KL
+
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+
+# Hard-coded PORT_SEED far from active lanes (054=31, 055=37, 056ABCD=41-44, 053A original=23)
+PORT_SEED=${PORT_SEED:-25}
+PORT_OFFSET=$(( (PORT_SEED % 60) * 50 ))
+
+# RESUME from 053A iter 200 (NEW run dir, won't overwrite original)
+export RESUME_CHECKPOINT=/home/hice1/wsun377/Desktop/cs8803drl/ray_results/053A_outcome_pbrs_combo_on_031B_512x512_20260419_172337/TeamVsBaselineShapingPPOTrainer_Soccer_12ba4_00000_0_2026-04-19_17-23-56/checkpoint_000200/checkpoint-200
+
+# A2 PBRS predictor (same as original 053A — A3 calibrated)
+export OUTCOME_PBRS_PREDICTOR_PATH=/home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/v3_dataset/direction_1b_v3/best_outcome_predictor_v3_calibrated.pt
+export OUTCOME_PBRS_WEIGHT=0.01
+export OUTCOME_PBRS_WARMUP_STEPS=10000
+export OUTCOME_PBRS_MAX_BUFFER_STEPS=80
+
+# v2 shaping (same as 053A)
+export USE_REWARD_SHAPING=1
+export SHAPING_FIELD_ROLE_BINDING=0
+export SHAPING_TIME_PENALTY=0.001 SHAPING_BALL_PROGRESS=0.01 SHAPING_GOAL_PROXIMITY_SCALE=0.0
+export SHAPING_GOAL_PROXIMITY_GAMMA=0.99 SHAPING_GOAL_CENTER_X=15.0 SHAPING_GOAL_CENTER_Y=0.0
+export SHAPING_OPP_PROGRESS_PENALTY=0.01 SHAPING_POSSESSION_BONUS=0.002 SHAPING_POSSESSION_DIST=1.25
+export SHAPING_PROGRESS_REQUIRES_POSSESSION=0
+export SHAPING_DEEP_ZONE_OUTER_THRESHOLD=-8 SHAPING_DEEP_ZONE_OUTER_PENALTY=0.003
+export SHAPING_DEEP_ZONE_INNER_THRESHOLD=-12 SHAPING_DEEP_ZONE_INNER_PENALTY=0.003
+export SHAPING_DEFENSIVE_SURVIVAL_THRESHOLD=0 SHAPING_DEFENSIVE_SURVIVAL_BONUS=0
+export SHAPING_FAST_LOSS_THRESHOLD_STEPS=0 SHAPING_FAST_LOSS_PENALTY_PER_STEP=0
+
+export RUN_NAME=053Acont_iter200_to_500_$(date +%Y%m%d_%H%M%S)
+export RAY_ADDRESS_OVERRIDE=local
+export RAY_SESSION_TMPDIR_OVERRIDE=/tmp/r53Acont_${PORT_SEED}
+export NUM_GPUS=1 NUM_WORKERS=8 NUM_ENVS_PER_WORKER=5
+export FCNET_HIDDENS=512,512
+
+# Architecture (cross-attention, same as 053A / 031B)
+export TEAM_SIAMESE_ENCODER=1 TEAM_SIAMESE_ENCODER_HIDDENS=256,256 TEAM_SIAMESE_MERGE_HIDDENS=256,128
+export TEAM_CROSS_ATTENTION=1 TEAM_CROSS_ATTENTION_TOKENS=4 TEAM_CROSS_ATTENTION_DIM=64
+
+export ROLLOUT_FRAGMENT_LENGTH=1000 TRAIN_BATCH_SIZE=40000 SGD_MINIBATCH_SIZE=2048 NUM_SGD_ITER=4
+export LR=0.0001 CLIP_PARAM=0.15
+export BASELINE_PROB=1.0
+
+# Budget: extend +300 iter (053A trained iter 0-200, continue trains 200→500)
+# TIMESTEPS_TOTAL = 200×40K + 300×40K = 20M (resume-aware)
+export TIMESTEPS_TOTAL=20000000 MAX_ITERATIONS=500 TIME_TOTAL_S=21600 CHECKPOINT_FREQ=10
+# RESUME_TIMESTEPS_DELTA tells trainer how many extra steps from base (300×40K)
+export RESUME_TIMESTEPS_DELTA=12000000
+
+export EVAL_INTERVAL=10 EVAL_EPISODES=50
+export EVAL_BASE_PORT=$((55505 + PORT_OFFSET))
+export EVAL_MAX_STEPS=1500
+export EVAL_OPPONENTS=baseline,random
+export EVAL_TEAM0_MODULE=cs8803drl.deployment.trained_team_ray_agent
+export EVAL_PYTHON_BIN=$PYTHON_BIN
+
+export BASE_PORT=$((55605 + PORT_OFFSET))
+export LOG_LEVEL=INFO LOG_SYS_USAGE=0
+
+mkdir -p docs/experiments/artifacts/slurm-logs
+LOG=docs/experiments/artifacts/slurm-logs/053Acont_train_$(date +%Y%m%d_%H%M%S).log
+$PYTHON_BIN -u -m cs8803drl.training.train_ray_team_vs_baseline_shaping 2>&1 | tee "$LOG"
