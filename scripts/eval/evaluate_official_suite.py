@@ -37,6 +37,10 @@ def _resolve_eval_checkpoint(path: str) -> str:
     return resolve_checkpoint_file(str(candidate))
 
 
+def _safe_label(text: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]+", "_", str(text or "").strip()) or "agent"
+
+
 def _default_python() -> str:
     if DEFAULT_H100_PYTHON.exists():
         return str(DEFAULT_H100_PYTHON)
@@ -111,7 +115,7 @@ def _extract_official_metrics(output_text: str, team0_module: str):
 
 def _run_one(
     *,
-    checkpoint: str,
+    checkpoint: str | None,
     team0_module: str,
     opponent_label: str,
     opponent_module: str,
@@ -119,12 +123,15 @@ def _run_one(
     base_port: int,
     python_bin: str,
 ):
-    checkpoint_file = _resolve_eval_checkpoint(checkpoint)
+    checkpoint_file = _resolve_eval_checkpoint(checkpoint) if checkpoint else None
     env = os.environ.copy()
     env["PYTHONPATH"] = str(REPO_ROOT) + (
         os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
     )
-    env["TRAINED_RAY_CHECKPOINT"] = checkpoint_file
+    if checkpoint_file:
+        env["TRAINED_RAY_CHECKPOINT"] = checkpoint_file
+    else:
+        env.pop("TRAINED_RAY_CHECKPOINT", None)
     env.setdefault("RAY_DISABLE_DASHBOARD", "1")
     env.setdefault("RAY_USAGE_STATS_ENABLED", "0")
 
@@ -152,12 +159,12 @@ def _run_one(
     output = proc.stdout
     if proc.returncode != 0:
         raise RuntimeError(
-            f"Official evaluation failed for {checkpoint_file} vs {opponent_label} "
+            f"Official evaluation failed for {checkpoint_file or team0_module} vs {opponent_label} "
             f"with exit code {proc.returncode}.\n{output}"
         )
 
     metrics = _extract_official_metrics(output, team0_module)
-    return checkpoint_file, metrics, output
+    return checkpoint_file or team0_module, metrics, output
 
 
 def parse_args():
@@ -165,8 +172,15 @@ def parse_args():
     parser.add_argument(
         "--checkpoint",
         action="append",
-        required=True,
-        help="Checkpoint dir or file. Repeat for multiple checkpoints.",
+        help=(
+            "Checkpoint dir or file. Repeat for multiple checkpoints. Optional for "
+            "self-contained team0 modules that embed their own checkpoint paths."
+        ),
+    )
+    parser.add_argument(
+        "--label",
+        default="",
+        help="Optional label to use in recap/log filenames when --checkpoint is omitted.",
     )
     parser.add_argument(
         "--team0-module",
@@ -204,9 +218,15 @@ def main():
     recap = []
     port_index = 0
 
-    for checkpoint in args.checkpoint:
-        ckpt_file = _resolve_eval_checkpoint(checkpoint)
-        ckpt_label = Path(ckpt_file).name
+    checkpoints = args.checkpoint or [None]
+
+    for checkpoint in checkpoints:
+        if checkpoint:
+            ckpt_file = _resolve_eval_checkpoint(checkpoint)
+            ckpt_label = Path(ckpt_file).name
+        else:
+            ckpt_file = None
+            ckpt_label = args.label.strip() or args.team0_module
         for opponent_label, opponent_module in opponents:
             current_port = _safe_base_port(int(args.base_port), port_index)
             port_index += 1
@@ -221,7 +241,7 @@ def main():
                 python_bin=args.python_bin,
             )
             if save_logs_dir is not None:
-                safe_name = f"{Path(checkpoint_file).name}_vs_{opponent_label}.log"
+                safe_name = f"{_safe_label(ckpt_label)}_vs_{opponent_label}.log"
                 (save_logs_dir / safe_name).write_text(output)
 
             recap.append((checkpoint_file, opponent_label, metrics))

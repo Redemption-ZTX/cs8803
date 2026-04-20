@@ -73,13 +73,24 @@ DEFAULT_LOG_LEVEL = "WARN"
 DEFAULT_BASELINE_PROB = 0.9
 DEFAULT_FCNET_HIDDENS = (512, 512)
 _EVAL_SUMMARY_PATTERN = re.compile(
-    r"^(team0_module|team1_module|episodes|team0_wins|team1_wins|ties|team0_win_rate):\s*(.+)$"
+    r"^(team0_module|team1_module|episodes|team0_wins|team1_wins|ties|team0_win_rate|"
+    r"team0_non_loss_rate|team0_fast_wins|team0_fast_win_threshold|team0_fast_win_rate):\s*(.+)$"
 )
 
 
+def _resolve_success_metric():
+    """`EVAL_SUCCESS_METRIC` env var → metric used for best_eval selection."""
+    val = (os.environ.get("EVAL_SUCCESS_METRIC", "") or "").strip().lower()
+    if val in ("", "win_rate"):
+        return "win_rate"
+    if val in ("non_loss_rate", "fast_win_rate"):
+        return val
+    return "win_rate"
+
+
 def _after_init_warmstart(trainer):
-    restore_path = os.environ.get("RESTORE_CHECKPOINT", "").strip()
-    if restore_path and not _env_bool("WARMSTART_ON_RESTORE", False):
+    resume_path = _resolve_resume_checkpoint_env()
+    if resume_path and not _warmstart_on_resume_enabled(False):
         return
 
     warmstart_path = os.environ.get("WARMSTART_CHECKPOINT", "").strip()
@@ -119,6 +130,44 @@ def _env_bool(name, default):
     if value is None or value == "":
         return bool(default)
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _resolve_resume_checkpoint_env():
+    resume_path = os.environ.get("RESUME_CHECKPOINT", "").strip()
+    restore_path = os.environ.get("RESTORE_CHECKPOINT", "").strip()
+    if resume_path and restore_path and resume_path != restore_path:
+        raise ValueError(
+            "RESUME_CHECKPOINT and RESTORE_CHECKPOINT are both set with different values. "
+            "Use RESUME_CHECKPOINT going forward, or keep both identical."
+        )
+    return resume_path or restore_path
+
+
+def _resolve_resume_timesteps_delta(default=0):
+    resume_raw = os.environ.get("RESUME_TIMESTEPS_DELTA", "").strip()
+    restore_raw = os.environ.get("RESTORE_TIMESTEPS_DELTA", "").strip()
+    if resume_raw and restore_raw and int(resume_raw) != int(restore_raw):
+        raise ValueError(
+            "RESUME_TIMESTEPS_DELTA and RESTORE_TIMESTEPS_DELTA are both set with different "
+            "values. Use RESUME_TIMESTEPS_DELTA going forward, or keep both identical."
+        )
+    if resume_raw:
+        return int(resume_raw)
+    if restore_raw:
+        return int(restore_raw)
+    return int(default)
+
+
+def _warmstart_on_resume_enabled(default=False):
+    if os.environ.get("WARMSTART_ON_RESUME", "").strip():
+        return _env_bool("WARMSTART_ON_RESUME", default)
+    return _env_bool("WARMSTART_ON_RESTORE", default)
+
+
+def _allow_resume_with_warmstart(default=False):
+    if os.environ.get("ALLOW_RESUME_WITH_WARMSTART", "").strip():
+        return _env_bool("ALLOW_RESUME_WITH_WARMSTART", default)
+    return _env_bool("ALLOW_RESTORE_WITH_WARMSTART", default)
 
 
 def _env_layers(name, default):
@@ -198,6 +247,14 @@ def _build_reward_shaping_config():
             "SHAPING_DEFENSIVE_SURVIVAL_BONUS",
             "SHAPING_FAST_LOSS_THRESHOLD_STEPS",
             "SHAPING_FAST_LOSS_PENALTY_PER_STEP",
+            "SHAPING_TEAM_SPACING_SCALE",
+            "SHAPING_TEAM_COVERAGE_SCALE",
+            "SHAPING_TEAM_POTENTIAL_GAMMA",
+            "SHAPING_TEAM_NEAR_BALL_THRESHOLD",
+            "SHAPING_TEAM_SPACING_MIN",
+            "SHAPING_TEAM_SPACING_MAX",
+            "SPECIALIST_MODE",
+            "FAST_WIN_THRESHOLD",
             "REWARD_SHAPING_DEBUG",
         )
     ):
@@ -230,6 +287,14 @@ def _build_reward_shaping_config():
         "defensive_survival_bonus": _env_float("SHAPING_DEFENSIVE_SURVIVAL_BONUS", 0.0),
         "fast_loss_threshold_steps": _env_int("SHAPING_FAST_LOSS_THRESHOLD_STEPS", 0),
         "fast_loss_penalty_per_step": _env_float("SHAPING_FAST_LOSS_PENALTY_PER_STEP", 0.0),
+        "team_spacing_scale": _env_float("SHAPING_TEAM_SPACING_SCALE", 0.0),
+        "team_coverage_scale": _env_float("SHAPING_TEAM_COVERAGE_SCALE", 0.0),
+        "team_potential_gamma": _env_float("SHAPING_TEAM_POTENTIAL_GAMMA", 0.99),
+        "team_near_ball_threshold": _env_float("SHAPING_TEAM_NEAR_BALL_THRESHOLD", 3.0),
+        "team_spacing_min": _env_float("SHAPING_TEAM_SPACING_MIN", 2.0),
+        "team_spacing_max": _env_float("SHAPING_TEAM_SPACING_MAX", 6.0),
+        "specialist_mode": os.environ.get("SPECIALIST_MODE", "none").strip().lower() or "none",
+        "fast_win_threshold": _env_int("FAST_WIN_THRESHOLD", 100),
         "debug_info": debug_info,
     }
 
@@ -237,7 +302,7 @@ def _build_reward_shaping_config():
 def _print_run_header(
     *,
     run_dir,
-    restore_path,
+    resume_path,
     timesteps_total,
     time_total_s,
     max_iterations,
@@ -261,7 +326,7 @@ def _print_run_header(
     _console_print("")
     _console_print("Training Configuration")
     _console_print(f"  run_dir:              {run_dir}")
-    _console_print(f"  restore_checkpoint:   {restore_path or 'None'}")
+    _console_print(f"  resume_checkpoint:    {resume_path or 'None'}")
     _console_print(f"  target_timesteps:     {_format_count(timesteps_total)}")
     _console_print(f"  time_limit:           {_format_seconds(time_total_s) if time_total_s > 0 else 'disabled'}")
     _console_print(f"  max_iterations:       {max_iterations if max_iterations > 0 else 'disabled'}")
@@ -447,7 +512,6 @@ def _load_eval_rows(eval_csv):
 def _append_eval_row(eval_csv, row):
     eval_csv = Path(eval_csv)
     eval_csv.parent.mkdir(parents=True, exist_ok=True)
-    exists = eval_csv.exists()
     fieldnames = [
         "timestamp",
         "checkpoint_iteration",
@@ -459,14 +523,37 @@ def _append_eval_row(eval_csv, row):
         "losses",
         "ties",
         "win_rate",
+        "non_loss_rate",
+        "fast_wins",
+        "fast_win_threshold",
+        "fast_win_rate",
         "status",
         "log_path",
     ]
+    existing_rows = []
+    rewrite = False
+    if eval_csv.exists():
+        with eval_csv.open(newline="") as handle:
+            reader = csv.DictReader(handle)
+            existing_header = reader.fieldnames or []
+            existing_rows = list(reader)
+        if existing_header != fieldnames:
+            rewrite = True
+
+    if rewrite:
+        with eval_csv.open("w", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fieldnames)
+            writer.writeheader()
+            for existing_row in existing_rows:
+                normalized = {key: existing_row.get(key, "") for key in fieldnames}
+                writer.writerow(normalized)
+
     with eval_csv.open("a", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        if not exists:
+        if handle.tell() == 0:
             writer.writeheader()
-        writer.writerow(row)
+        normalized = {key: row.get(key, "") for key in fieldnames}
+        writer.writerow(normalized)
 
 
 def _failed_eval_row(*, checkpoint_dir, checkpoint_iteration, opponent_name, episodes, log_path):
@@ -518,6 +605,7 @@ def _evaluate_checkpoint_once(
     base_port,
     python_bin,
     log_dir,
+    ray_tmp_dir=None,
 ):
     checkpoint_file = resolve_checkpoint_file(str(checkpoint_dir))
     env = os.environ.copy()
@@ -525,7 +613,11 @@ def _evaluate_checkpoint_once(
     env["TRAINED_RAY_CHECKPOINT"] = checkpoint_file
     env.setdefault("RAY_DISABLE_DASHBOARD", "1")
     env.setdefault("RAY_USAGE_STATS_ENABLED", "0")
+    if ray_tmp_dir:
+        env["RAY_SESSION_TMPDIR_OVERRIDE"] = str(ray_tmp_dir)
+        os.makedirs(ray_tmp_dir, exist_ok=True)
 
+    fast_win_threshold = _env_int("FAST_WIN_THRESHOLD", 100)
     cmd = [
         python_bin,
         "-m",
@@ -540,6 +632,8 @@ def _evaluate_checkpoint_once(
         str(int(max_steps)),
         "--base_port",
         str(int(base_port)),
+        "--fast-win-threshold",
+        str(int(fast_win_threshold)),
     ]
 
     proc = subprocess.run(
@@ -580,6 +674,10 @@ def _evaluate_checkpoint_once(
         "losses": int(summary.get("team1_wins", 0)),
         "ties": int(summary.get("ties", 0)),
         "win_rate": float(summary.get("team0_win_rate", 0.0)),
+        "non_loss_rate": float(summary.get("team0_non_loss_rate", 0.0)),
+        "fast_win_rate": float(summary.get("team0_fast_win_rate", 0.0)),
+        "fast_wins": int(summary.get("team0_fast_wins", 0)),
+        "fast_win_threshold": int(summary.get("team0_fast_win_threshold", 0)),
         "status": "ok",
         "log_path": str(log_path),
     }
@@ -595,6 +693,7 @@ def _select_best_eval(rows):
             continue
         grouped.setdefault(checkpoint_dir, {})[row.get("opponent")] = row
 
+    metric_key = _resolve_success_metric()    # win_rate | non_loss_rate | fast_win_rate
     best = None
     best_key = None
     for checkpoint_dir, result_map in grouped.items():
@@ -602,8 +701,8 @@ def _select_best_eval(rows):
         if baseline is None:
             continue
         random_row = result_map.get("random")
-        baseline_rate = float(baseline.get("win_rate", 0.0))
-        random_rate = float(random_row.get("win_rate", -1.0)) if random_row is not None else -1.0
+        baseline_rate = float(baseline.get(metric_key, 0.0))
+        random_rate = float(random_row.get(metric_key, -1.0)) if random_row is not None else -1.0
         iteration = int(baseline.get("checkpoint_iteration", -1))
         key = (baseline_rate, random_rate, iteration)
         if best_key is None or key > best_key:
@@ -1086,11 +1185,11 @@ def main():
     use_reward_shaping = _env_bool("USE_REWARD_SHAPING", True)
 
     warmstart_path = os.environ.get("WARMSTART_CHECKPOINT", "").strip() or None
-    restore_path = os.environ.get("RESTORE_CHECKPOINT", "").strip() or None
-    if warmstart_path and not _env_bool("ALLOW_RESTORE_WITH_WARMSTART", False):
-        restore_path = None
-    if restore_path:
-        restore_path = sanitize_checkpoint_for_restore(restore_path)
+    resume_path = _resolve_resume_checkpoint_env() or None
+    if warmstart_path and not _allow_resume_with_warmstart(False):
+        resume_path = None
+    if resume_path:
+        resume_path = sanitize_checkpoint_for_restore(resume_path)
 
     timesteps_total = _env_int("TIMESTEPS_TOTAL", DEFAULT_TIMESTEPS_TOTAL)
     time_total_s = _env_int("TIME_TOTAL_S", DEFAULT_TIME_TOTAL_S)
@@ -1153,7 +1252,7 @@ def main():
     run_dir = os.path.join(local_dir, run_name)
     _print_run_header(
         run_dir=run_dir,
-        restore_path=restore_path,
+        resume_path=resume_path,
         timesteps_total=timesteps_total,
         time_total_s=time_total_s,
         max_iterations=max_iterations,
@@ -1172,8 +1271,8 @@ def main():
     )
     if warmstart_path:
         _console_print(f"  warmstart_checkpoint: {warmstart_path}")
-        if not restore_path:
-            _console_print("  restore_checkpoint:  disabled (warm-start mode)")
+        if not resume_path:
+            _console_print("  resume_checkpoint:   disabled (warm-start mode)")
     _console_print("")
 
     final_checkpoint = None
@@ -1220,7 +1319,7 @@ def main():
             checkpoint_freq=checkpoint_freq,
             checkpoint_at_end=True,
             local_dir=local_dir,
-            restore=restore_path,
+            restore=resume_path,
             verbose=0,
             raise_on_failed_trial=False,
         )
@@ -1299,12 +1398,24 @@ def main():
             "  best_eval_checkpoint: "
             f"{best_eval.get('checkpoint_file') or best_eval.get('checkpoint_dir')}"
         )
+        success_metric = _resolve_success_metric()
         _console_print(
             "  best_eval_baseline:  "
             f"{float(baseline.get('win_rate', 0.0)):.3f} "
             f"({baseline.get('wins', '?')}W-{baseline.get('losses', '?')}L-{baseline.get('ties', '?')}T) "
             f"@ iteration {best_eval.get('checkpoint_iteration', '?')}"
         )
+        if success_metric != "win_rate":
+            specialist_val = float(baseline.get(success_metric, 0.0))
+            extra_info = ""
+            if success_metric == "fast_win_rate":
+                extra_info = (
+                    f" [fast_wins={baseline.get('fast_wins', '?')}, "
+                    f"threshold={baseline.get('fast_win_threshold', '?')}]"
+                )
+            _console_print(
+                f"  best_eval_baseline_{success_metric}: {specialist_val:.3f}{extra_info}"
+            )
         if random_row:
             _console_print(
                 "  best_eval_random:    "

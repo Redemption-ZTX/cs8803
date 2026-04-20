@@ -53,7 +53,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-steps", type=int, default=1500)
     parser.add_argument("--base-port", type=int, default=61205)
     parser.add_argument("--save-dir", required=True)
-    parser.add_argument("--save-mode", choices=("losses", "nonwins", "all"), default="losses")
+    parser.add_argument(
+        "--save-mode",
+        choices=("losses", "nonwins", "all", "wins", "fast_wins", "ties"),
+        default="losses",
+    )
+    parser.add_argument(
+        "--fast-win-threshold",
+        type=int,
+        default=100,
+        help=(
+            "Episode step threshold below which a team0 win counts as a 'fast' win. "
+            "Forwarded to evaluate_matches.py; required when --save-mode=fast_wins."
+        ),
+    )
     parser.add_argument("--max-saved-episodes", type=int, default=50)
     parser.add_argument("--trace-stride", type=int, default=5)
     parser.add_argument("--trace-tail-steps", type=int, default=40)
@@ -168,6 +181,8 @@ def main() -> None:
         str(float(args.event_clearance_reward)),
         "--event-cooldown-steps",
         str(int(args.event_cooldown_steps)),
+        "--fast-win-threshold",
+        str(int(args.fast_win_threshold)),
     ]
     if args.reward_shaping_debug:
         cmd.append("--reward-shaping-debug")

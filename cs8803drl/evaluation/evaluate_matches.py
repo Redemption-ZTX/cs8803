@@ -248,9 +248,12 @@ def main() -> None:
     )
     parser.add_argument(
         "--save-mode",
-        choices=("losses", "nonwins", "all"),
+        choices=("losses", "nonwins", "all", "wins", "fast_wins", "ties"),
         default="losses",
-        help="Which episodes to save when --save-episodes-dir is set. Default: losses",
+        help=(
+            "Which episodes to save when --save-episodes-dir is set. Default: losses. "
+            "fast_wins requires --fast-win-threshold (only team0 wins with steps <= threshold)."
+        ),
     )
     parser.add_argument(
         "--max-saved-episodes",
@@ -299,6 +302,15 @@ def main() -> None:
     parser.add_argument("--defensive-survival-bonus", type=float, default=0.0)
     parser.add_argument("--fast-loss-threshold-steps", type=int, default=0)
     parser.add_argument("--fast-loss-penalty-per-step", type=float, default=0.0)
+    parser.add_argument(
+        "--fast-win-threshold",
+        type=int,
+        default=100,
+        help=(
+            "Episode step threshold below which a team0 win counts as a 'fast' win. "
+            "Used to derive team0_fast_win_rate (snapshot-044 specialist metric)."
+        ),
+    )
     parser.add_argument("--event-shot-reward", type=float, default=0.0)
     parser.add_argument("--event-tackle-reward", type=float, default=0.0)
     parser.add_argument("--event-clearance-reward", type=float, default=0.0)
@@ -430,6 +442,17 @@ def main() -> None:
                 should_save = outcome != "team0_win"
             elif args.save_mode == "losses":
                 should_save = outcome == "team1_win"
+            elif args.save_mode == "wins":
+                should_save = outcome == "team0_win"
+            elif args.save_mode == "fast_wins":
+                fw_threshold = max(0, int(args.fast_win_threshold))
+                should_save = (
+                    outcome == "team0_win"
+                    and fw_threshold > 0
+                    and int(total_steps) <= fw_threshold
+                )
+            elif args.save_mode == "ties":
+                should_save = outcome == "tie"
 
         if should_save:
             record = recorder.build_episode_record(
@@ -452,6 +475,9 @@ def main() -> None:
             f"team0_reward={team0_reward_total:.4f} team1_reward={team1_reward_total:.4f}"
         )
 
+    fast_win_threshold = max(0, int(args.fast_win_threshold))
+    team0_fast_wins = sum(1 for s in team0_win_steps if int(s) <= fast_win_threshold) if fast_win_threshold > 0 else 0
+
     print("---- Summary ----")
     print(f"team0_module: {args.team0_module}")
     print(f"team1_module: {args.team1_module}")
@@ -460,6 +486,10 @@ def main() -> None:
     print(f"team1_wins: {wins1}")
     print(f"ties: {ties}")
     print(f"team0_win_rate: {wins0 / max(args.episodes, 1):.3f}")
+    print(f"team0_non_loss_rate: {(wins0 + ties) / max(args.episodes, 1):.3f}")
+    print(f"team0_fast_wins: {team0_fast_wins}")
+    print(f"team0_fast_win_threshold: {fast_win_threshold}")
+    print(f"team0_fast_win_rate: {team0_fast_wins / max(args.episodes, 1):.3f}")
     _print_step_stats("episode_steps_all", all_steps)
     _print_step_stats("episode_steps_team0_win", team0_win_steps)
     _print_step_stats("episode_steps_team1_win", team1_win_steps)

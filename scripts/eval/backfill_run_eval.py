@@ -6,11 +6,18 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(line_buffering=True)
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(line_buffering=True)
 
 from cs8803drl.training.train_ray_team_vs_random_shaping import (  # noqa: E402
     _append_eval_row,
@@ -32,6 +39,38 @@ def _default_python() -> str:
     if DEFAULT_H100_PYTHON.exists():
         return str(DEFAULT_H100_PYTHON)
     return sys.executable
+
+
+def _checkpoint_iteration_from_dir(path: Path) -> int:
+    name = path.name
+    if not name.startswith("checkpoint_"):
+        return -1
+    try:
+        return int(name.split("_", 1)[1])
+    except Exception:
+        return -1
+
+
+def _iter_checkpoint_dirs_flexible(path: Path):
+    direct = [p for p in path.glob("checkpoint_*") if p.is_dir() and _checkpoint_iteration_from_dir(p) >= 0]
+    if direct:
+        return sorted(
+            direct,
+            key=lambda p: (_checkpoint_iteration_from_dir(p), str(p)),
+        )
+    return _find_checkpoint_dirs(path)
+
+
+def _run_one_task(task):
+    started = time.time()
+    result = _evaluate_checkpoint_once(**task["kwargs"])
+    return {
+        "checkpoint_dir": task["checkpoint_dir"],
+        "checkpoint_iteration": task["checkpoint_iteration"],
+        "opponent_name": task["opponent_name"],
+        "result": result,
+        "elapsed": time.time() - started,
+    }
 
 
 def parse_args() -> argparse.Namespace:
@@ -78,6 +117,18 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Retry rows previously recorded with status=failed.",
     )
+    parser.add_argument(
+        "-j",
+        "--parallel",
+        type=int,
+        default=1,
+        help="Max concurrent checkpoint matchup evaluations. Default: 1 (serial).",
+    )
+    parser.add_argument(
+        "--ray-tmp-root",
+        default="/tmp/ray_backfill_parallel",
+        help="Root dir for per-task Ray session temp dirs when using -j > 1.",
+    )
     return parser.parse_args()
 
 
@@ -104,10 +155,12 @@ def main() -> None:
     seen = seen_ok | (set() if args.retry_failed else seen_failed)
 
     opponents = _parse_eval_opponents(args.opponents)
-    checkpoint_dirs = _find_checkpoint_dirs(run_dir)
+    checkpoint_dirs = _iter_checkpoint_dirs_flexible(run_dir)
     pending = []
     for checkpoint_dir in checkpoint_dirs:
-        iteration = int(checkpoint_dir.name.split("_", 1)[1])
+        iteration = _checkpoint_iteration_from_dir(checkpoint_dir)
+        if iteration < 0:
+            continue
         if iteration < int(args.min_iteration):
             continue
         if int(args.max_iteration) > 0 and iteration > int(args.max_iteration):
@@ -122,42 +175,96 @@ def main() -> None:
     if not pending:
         print("No pending checkpoint evaluations.")
     else:
-        next_port_offset = 0
-        for checkpoint_dir, iteration, opponent_name, opponent_module in pending:
+        tasks = []
+        for task_idx, (checkpoint_dir, iteration, opponent_name, opponent_module) in enumerate(pending):
+            tasks.append(
+                {
+                    "task_idx": task_idx,
+                    "checkpoint_dir": checkpoint_dir,
+                    "checkpoint_iteration": iteration,
+                    "opponent_name": opponent_name,
+                    "kwargs": {
+                        "checkpoint_dir": checkpoint_dir,
+                        "team0_module": args.team0_module,
+                        "opponent_name": opponent_name,
+                        "opponent_module": opponent_module,
+                        "episodes": int(args.episodes),
+                        "max_steps": int(args.max_steps),
+                        "base_port": _safe_eval_base_port(int(args.base_port), task_idx),
+                        "python_bin": args.python_bin,
+                        "log_dir": eval_log_dir,
+                        "ray_tmp_dir": os.path.join(args.ray_tmp_root, f"worker_{task_idx:03d}"),
+                    },
+                }
+            )
+
+        parallel = max(1, min(int(args.parallel), len(tasks)))
+        print(
+            f"[backfill-eval] run_dir={run_dir} tasks={len(tasks)} parallel={parallel} "
+            f"episodes={args.episodes} base_port={args.base_port}",
+            flush=True,
+        )
+        for task in tasks:
+            print(
+                f"  task#{task['task_idx']:03d} it={task['checkpoint_iteration']:>4} "
+                f"vs {task['opponent_name']:<8} "
+                f"unity_port={task['kwargs']['base_port']} "
+                f"ray_tmp={task['kwargs']['ray_tmp_dir']}",
+                flush=True,
+            )
+
+        def _record_failure(checkpoint_dir, iteration, opponent_name, exc):
             checkpoint_name = checkpoint_dir.name
             log_path = eval_log_dir / f"{checkpoint_name}_{opponent_name}.log"
-            try:
-                result = _evaluate_checkpoint_once(
-                    checkpoint_dir=checkpoint_dir,
-                    team0_module=args.team0_module,
-                    opponent_name=opponent_name,
-                    opponent_module=opponent_module,
-                    episodes=int(args.episodes),
-                    max_steps=int(args.max_steps),
-                    base_port=_safe_eval_base_port(int(args.base_port), next_port_offset),
-                    python_bin=args.python_bin,
-                    log_dir=eval_log_dir,
-                )
-                next_port_offset += 1
-                result["timestamp"] = __import__("datetime").datetime.now().isoformat(timespec="seconds")
-                _append_eval_row(eval_csv, result)
-                rows.append(result)
-                print(
-                    f"[backfill-eval] it {iteration} | {opponent_name} "
-                    f"{result['wins']}W-{result['losses']}L-{result['ties']}T "
-                    f"(win_rate={result['win_rate']:.3f})"
-                )
-            except Exception as exc:
-                failed_row = _failed_eval_row(
-                    checkpoint_dir=checkpoint_dir,
-                    checkpoint_iteration=iteration,
-                    opponent_name=opponent_name,
-                    episodes=int(args.episodes),
-                    log_path=log_path,
-                )
-                _append_eval_row(eval_csv, failed_row)
-                rows.append(failed_row)
-                print(f"[backfill-eval] it {iteration} | {opponent_name} FAILED: {exc}")
+            failed_row = _failed_eval_row(
+                checkpoint_dir=checkpoint_dir,
+                checkpoint_iteration=iteration,
+                opponent_name=opponent_name,
+                episodes=int(args.episodes),
+                log_path=log_path,
+            )
+            _append_eval_row(eval_csv, failed_row)
+            rows.append(failed_row)
+            print(f"[backfill-eval] it {iteration} | {opponent_name} FAILED: {exc}", flush=True)
+
+        if parallel == 1:
+            for task in tasks:
+                try:
+                    outcome = _run_one_task(task)
+                    result = outcome["result"]
+                    result["timestamp"] = __import__("datetime").datetime.now().isoformat(timespec="seconds")
+                    _append_eval_row(eval_csv, result)
+                    rows.append(result)
+                    print(
+                        f"[backfill-eval] it {task['checkpoint_iteration']} | {task['opponent_name']} "
+                        f"{result['wins']}W-{result['losses']}L-{result['ties']}T "
+                        f"(win_rate={result['win_rate']:.3f}) "
+                        f"elapsed={outcome['elapsed']:.1f}s",
+                        flush=True,
+                    )
+                except Exception as exc:
+                    _record_failure(task["checkpoint_dir"], task["checkpoint_iteration"], task["opponent_name"], exc)
+        else:
+            with ProcessPoolExecutor(max_workers=parallel) as executor:
+                futures = {executor.submit(_run_one_task, task): task for task in tasks}
+                for future in as_completed(futures):
+                    task = futures[future]
+                    try:
+                        outcome = future.result()
+                        result = outcome["result"]
+                        result["timestamp"] = __import__("datetime").datetime.now().isoformat(timespec="seconds")
+                        _append_eval_row(eval_csv, result)
+                        rows.append(result)
+                        print(
+                            f"[done task#{task['task_idx']:03d}] "
+                            f"it {task['checkpoint_iteration']} | {task['opponent_name']} "
+                            f"{result['wins']}W-{result['losses']}L-{result['ties']}T "
+                            f"(win_rate={result['win_rate']:.3f}) "
+                            f"elapsed={outcome['elapsed']:.1f}s",
+                            flush=True,
+                        )
+                    except Exception as exc:
+                        _record_failure(task["checkpoint_dir"], task["checkpoint_iteration"], task["opponent_name"], exc)
 
     best_eval = _select_best_eval(rows)
     if best_eval:
