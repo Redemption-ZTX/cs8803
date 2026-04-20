@@ -25,6 +25,19 @@ from ray import tune
 from ray.tune.registry import get_trainable_cls
 
 from soccer_twos import AgentInterface
+from cs8803drl.branches.team_siamese import (
+    register_team_siamese_cross_agent_attn_model,
+    register_team_siamese_cross_attention_model,
+    register_team_siamese_model,
+    register_team_siamese_transformer_model,
+    register_team_siamese_transformer_mha_model,
+    register_team_siamese_transformer_min_model,
+)
+from cs8803drl.branches.team_siamese_distill import (
+    register_team_siamese_distill_model,
+    register_team_siamese_ensemble_distill_model,
+)
+from cs8803drl.branches.team_action_aux import register_team_action_aux_model
 from cs8803drl.core.checkpoint_utils import load_policy_weights
 
 
@@ -109,13 +122,17 @@ class TeamRayAgent(AgentInterface):
         os.environ.setdefault("RAY_USAGE_STATS_ENABLED", "0")
         os.environ.setdefault("RAY_GRAFANA_HOST", "")
         os.environ.setdefault("RAY_PROMETHEUS_HOST", "")
-        ray.init(
+        _ray_init_kwargs = dict(
             ignore_reinit_error=True,
             include_dashboard=False,
             local_mode=True,
             num_cpus=1,
             log_to_driver=False,
         )
+        _ray_tmp_override = os.environ.get("RAY_SESSION_TMPDIR_OVERRIDE")
+        if _ray_tmp_override:
+            _ray_init_kwargs["_temp_dir"] = _ray_tmp_override
+        ray.init(**_ray_init_kwargs)
 
         raw_obs_space = getattr(env, "observation_space", None)
         raw_action_space = getattr(env, "action_space", None)
@@ -127,6 +144,15 @@ class TeamRayAgent(AgentInterface):
         self._player_action_dim = int(len(np.asarray(raw_action_space.nvec).reshape(-1)))
 
         config = _load_params_config(checkpoint_path)
+        register_team_siamese_model()
+        register_team_siamese_cross_attention_model()
+        register_team_siamese_cross_agent_attn_model()
+        register_team_siamese_transformer_model()
+        register_team_siamese_transformer_mha_model()
+        register_team_siamese_transformer_min_model()
+        register_team_siamese_distill_model()
+        register_team_siamese_ensemble_distill_model()
+        register_team_action_aux_model()
         tune.registry.register_env(
             _DUMMY_ENV_NAME,
             lambda *_: _DummyGymEnv(self._team_obs_space, self._team_action_space),
@@ -163,4 +189,3 @@ class TeamRayAgent(AgentInterface):
             player_ids[0]: team_action[: self._player_action_dim].astype(np.int64),
             player_ids[1]: team_action[self._player_action_dim :].astype(np.int64),
         }
-

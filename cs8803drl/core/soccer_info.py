@@ -196,6 +196,73 @@ def infer_terminal_winner(info: Any) -> Optional[int]:
     return None
 
 
+def compute_team_coordination_potentials(
+    info: Any,
+    *,
+    near_ball_threshold: float = 3.0,
+    spacing_min: float = 2.0,
+    spacing_max: float = 6.0,
+) -> Tuple[Dict[int, Dict[str, float]], Dict[str, Any]]:
+    """Compute simple team-level spacing/coverage potentials for both teams.
+
+    Potentials are unscaled in [0, 1] so callers can apply PBRS weights outside
+    this helper.
+    """
+    debug: Dict[str, Any] = {
+        "team_coord_ball_found": False,
+        "team_coord_player_count": 0,
+        "team0_spacing_phi": None,
+        "team0_coverage_phi": None,
+        "team0_pair_dist": None,
+        "team0_near_ball_min_dist": None,
+        "team1_spacing_phi": None,
+        "team1_coverage_phi": None,
+        "team1_pair_dist": None,
+        "team1_near_ball_min_dist": None,
+    }
+
+    ball_pos = extract_ball_position(info)
+    player_positions = extract_player_positions(info)
+    debug["team_coord_ball_found"] = ball_pos is not None
+    debug["team_coord_player_count"] = len(player_positions)
+    if ball_pos is None:
+        return {}, debug
+
+    ball_x, ball_y = float(ball_pos[0]), float(ball_pos[1])
+    out: Dict[int, Dict[str, float]] = {}
+
+    for team_id, agent_ids in ((0, TEAM0_AGENT_IDS), (1, TEAM1_AGENT_IDS)):
+        if not all(int(agent_id) in player_positions for agent_id in agent_ids):
+            continue
+
+        x0, y0 = player_positions[int(agent_ids[0])]
+        x1, y1 = player_positions[int(agent_ids[1])]
+        x0, y0 = float(x0), float(y0)
+        x1, y1 = float(x1), float(y1)
+
+        pair_dist = math.hypot(x0 - x1, y0 - y1)
+        d0b = math.hypot(x0 - ball_x, y0 - ball_y)
+        d1b = math.hypot(x1 - ball_x, y1 - ball_y)
+        near_ball_min = min(d0b, d1b)
+        near_ball_one = near_ball_min < float(near_ball_threshold)
+
+        spacing_phi = 1.0 if near_ball_one and float(spacing_min) <= pair_dist <= float(spacing_max) else 0.0
+        front = max(x0, x1)
+        back = min(x0, x1)
+        coverage_phi = 1.0 if (front > ball_x and back < ball_x) else 0.0
+
+        out[int(team_id)] = {
+            "spacing": float(spacing_phi),
+            "coverage": float(coverage_phi),
+        }
+        debug[f"team{team_id}_spacing_phi"] = float(spacing_phi)
+        debug[f"team{team_id}_coverage_phi"] = float(coverage_phi)
+        debug[f"team{team_id}_pair_dist"] = float(pair_dist)
+        debug[f"team{team_id}_near_ball_min_dist"] = float(near_ball_min)
+
+    return out, debug
+
+
 def compute_shaping_components(
     info: Any,
     prev_ball_x: Optional[float],
@@ -488,6 +555,73 @@ def compute_terminal_shaping(
         debug["fast_loss_penalty_team0"] = team_penalty
         for agent_id in TEAM0_AGENT_IDS:
             add[agent_id] = add.get(agent_id, 0.0) - per_agent_penalty
+
+    return add, debug
+
+
+SPECIALIST_MODES = ("none", "spear", "shield")
+SPECIALIST_BASE_WIN_REWARD = 1.0  # the env gives +1 for win, -1 for loss, 0 for tie
+
+
+def compute_specialist_outcome_override(
+    info: Any,
+    *,
+    episode_steps: int,
+    mode: str,
+    fast_win_threshold: int,
+    controlled_team_id: int,
+) -> Tuple[Dict[int, float], Dict[str, Any]]:
+    """Override base match-outcome reward to align with specialist objective.
+
+    Specialist modes (snapshot-044):
+        spear  — only fast wins count. If controlled team wins after step
+                 `fast_win_threshold`, ZERO OUT the +1 win reward (subtract -1).
+                 Losses (-1) and ties (0) unchanged. Encourages aggressive,
+                 decisive play.
+        shield — ties count as wins. If episode ended in tie, ADD +1 to
+                 controlled-team agents (env gave 0). Wins/losses unchanged.
+                 Encourages risk-averse, defensive play.
+        none   — no override (returns empty dict).
+
+    Returns (add_by_agent_id, debug). The `add` dict is added to the wrapper's
+    final per-agent reward, mirroring the existing terminal_shaping path.
+    """
+    debug: Dict[str, Any] = {
+        "specialist_mode": mode,
+        "specialist_override_applied": False,
+        "specialist_winner": None,
+        "specialist_episode_steps": int(episode_steps),
+    }
+    add: Dict[int, float] = {}
+
+    mode_norm = str(mode or "none").strip().lower()
+    if mode_norm == "none" or mode_norm not in SPECIALIST_MODES:
+        return add, debug
+
+    winner = infer_terminal_winner(info)
+    debug["specialist_winner"] = winner
+
+    if int(controlled_team_id) == 0:
+        controlled_agent_ids = TEAM0_AGENT_IDS
+    elif int(controlled_team_id) == 1:
+        controlled_agent_ids = TEAM1_AGENT_IDS
+    else:
+        return add, debug
+
+    if mode_norm == "spear":
+        # Only override slow wins; zero out the win reward.
+        if winner == int(controlled_team_id) and int(episode_steps) > int(fast_win_threshold):
+            debug["specialist_override_applied"] = True
+            per_agent_delta = -float(SPECIALIST_BASE_WIN_REWARD)
+            for agent_id in controlled_agent_ids:
+                add[agent_id] = add.get(agent_id, 0.0) + per_agent_delta
+    elif mode_norm == "shield":
+        # Ties count as wins; add +1 to controlled team (env gave 0 for tie).
+        if winner is None:
+            debug["specialist_override_applied"] = True
+            per_agent_delta = +float(SPECIALIST_BASE_WIN_REWARD)
+            for agent_id in controlled_agent_ids:
+                add[agent_id] = add.get(agent_id, 0.0) + per_agent_delta
 
     return add, debug
 
