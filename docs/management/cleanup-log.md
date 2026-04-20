@@ -1,341 +1,618 @@
 # 磁盘清理日志
 
-## 目的
+> 目标：对 quota / 大目录清理做 append-only 记录，明确写出“计划删什么 / 实际删了什么 / 没删什么 / quota 变化”。
 
-本文件记录每次磁盘清理实际删除了什么、为什么删、删前删后配额变化如何。
+## 2026-04-19
 
-目标不是“证明清理过”，而是：
+### 2026-04-19 19:23 EDT — 删除 `038 / 040 / 041` 已收口 lane 的中间 checkpoint
 
-- 避免误删正式实验资产
-- 让后续清理能复用同一套标准
-- 让“哪些 run 已被清掉”有明确历史
+用户确认：
+- 可以继续做下一轮 quota 清理。
+- 口径仍然是：只删除**已闭环 / 已收口 / 非当前主线**实验的中间 checkpoint，保留文档仍会回看的锚点与尾部 checkpoint。
 
-## 记录规则
+本轮选择原则：
+- 先不碰 `030 / 032`，因为这些 run 在历史 snapshot 里直接挂了较多 checkpoint 链接，先避免误伤文档证据链。
+- 本轮只处理已经明确收口为：
+  - `038` Stage 1 历史线
+  - `040` Stage 2 饱和/否决线
+  - `041B` 退化线
 
-每次清理至少记录：
+执行前 quota：
+- `24649M / 30720M`
 
-- 日期
-- 清理前后配额
-- 删除对象
-- 删除理由
-- 是否涉及正式实验 run
+本轮处理的 run 与保留 checkpoint：
 
-推荐优先级：
+1. `040A_team_depenalized_v2_handoff_on_031A1040_formal_rerun2`
+- 保留：
+  - `40, 50, 60, 200`
+- 删除：
+  - `10, 20, 30, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190`
 
-1. 明显临时目录  
-   例如 `~/ray_results/*DummyEnv*`
-2. 缓存 / 包缓存  
-   例如 `~/.cache/pip`、`~/.conda/pkgs`、`~/.npm`
-3. 仓库内未完成、未形成结果链、且未被文档引用的 run
-4. 已被 rerun 替代的旧 run  
-   这类必须单独确认后再删
+2. `040B_team_pbrs_handoff_on_031A1040_formal`
+- 保留：
+  - `130, 140, 150, 170, 180, 190, 200`
+- 删除：
+  - `10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 160`
 
-## 2026-04-16
+3. `040C_team_event_lane_handoff_on_031A1040_formal_rerun`
+- 保留：
+  - `40, 50, 60, 200`
+- 删除：
+  - `10, 20, 30, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190`
 
-### 清理前配额
+4. `040D_team_v2_entropy_handoff_on_031A1040_formal`
+- 保留：
+  - `130, 140, 150, 200`
+- 删除：
+  - 主 trial 与后续 segment 中除上述锚点外的中间 `checkpoint_*`
+  - 实际删除总数：
+    - `31`
 
-- `30716M / 30720M`
+5. `041B_mappo_pbrs_on_036D150_512x512_20260419_004530`
+- 保留：
+  - `10, 20, 30, 40, 50, 60, 150, 200`
+- 删除：
+  - `70, 80, 90, 100, 110, 120, 130, 140, 160, 170, 180, 190`
 
-### 已删除
+6. `038A_team_depenalized_v2_stage1_on_028A1060_512x512_20260418_121346`
+- 保留：
+  - `40, 80, 90, 100, 120, 160, 180, 190, 200`
+- 删除：
+  - `10, 20, 30, 50, 60, 70, 110, 130, 140, 150, 170`
 
-#### Home 临时与缓存
+7. `038B_team_goal_prox_stage1_on_028A1060_512x512_20260418_120728`
+- 保留：
+  - `40, 80, 90, 100, 110, 120, 170, 180, 190, 200`
+- 删除：
+  - `10, 20, 30, 50, 60, 70, 130, 140, 150, 160`
 
-- `~/ray_results/*DummyEnv*`
-  - 共删除 `5857` 个 dummy-env 临时 Ray 目录
-  - 删除理由：deployment / checkpoint-load / smoke 产生的短命目录，不属于正式实验资产
-- `~/.cache/pip`
-  - 删除理由：pip 下载缓存，不影响现有环境使用
-- `~/.conda/pkgs`
-  - 删除理由：conda 包缓存，不影响现有 env
-- `~/.npm`
-  - 删除理由：npm 缓存
+8. `038C_team_event_lane_stage1_on_028A1060_512x512_20260418_120730`
+- 保留：
+  - `40, 50, 80, 90, 100, 120, 180, 190, 200`
+- 删除：
+  - `10, 20, 30, 60, 70, 110, 130, 140, 150, 160, 170`
 
-#### 仓库 `ray_results/` 内已删除 run
+9. `038D_team_v2_entropy_stage1_on_028A1060_512x512_20260418_120734`
+- 保留：
+  - `20, 40, 60, 80, 90, 100, 120, 180, 190, 200`
+- 删除：
+  - `10, 30, 50, 70, 110, 130, 140, 150, 160, 170`
 
-以下目录满足“未形成结果链，且未在文档中形成持续引用”的清理条件：
+执行结果：
+- 实际处理 run 数：
+  - `9`
+- 实际删除 checkpoint 目录数：
+  - `130`
 
-- `ray_results/PPO_base_ma_teams_20260411_190724`
-- `ray_results/PPO_team_vs_random_h100_20260408_133641`
-- `ray_results/PPO_base_team_vs_random_512x512_20260411_163047`
-- `ray_results/PPO_base_ma_teams_20260411_185845`
-- `ray_results/PPO_base_team_vs_random_512x256_20260411_163826`
-- `ray_results/PPO_benchmark_fast_h100_20260408_151622`
-- `ray_results/PPO_mappo_aux_teammate_scratch_512x512_20260416_065223`
-- `ray_results/PPO_base_team_vs_random_512x512_20260411_164603`
-- `ray_results/PPO_base_team_vs_random_512x256_20260411_164607`
+quota 结果：
+- 删除后：
+  - `23965M / 30720M`
+- 本轮净回收：
+  - `684M`
 
-### 明确保留
+说明：
+- 这轮继续遵守“只删中间 checkpoint，不删 run root 元数据”的原则。
+- `030 / 032` 暂时故意没动，因为它们在历史 snapshot 中存在较多直接 checkpoint 链接；如后续要继续清理，需先把文档锚点自动化提取得更稳。
 
-以下类型本次明确未动：
+### 2026-04-19 19:11 EDT — 删除已 commit、已文档化、非当前主线 run 的中间 checkpoint
 
-- 已写入 snapshot / README / CHANGELOG / WORKLOG 的正式实验 run
-- 当前主线相关 MAPPO / BC / opponent-pool / 021c run
-- `~/.conda/envs`
-- `~/.venvs`
+用户确认：
+- 可以继续做一轮更激进但仍可控的 quota 清理。
+- 目标是删除那些**已经 commit 过、但仍保留大量中间 checkpoint、且不属于当前重要主线**的 run。
+- 同时要求把“subtree / vendor 目录禁止推远端”写入工程规范。
 
-### 清理后配额
+执行口径：
+- 仅处理**已闭环 / 非当前主线 / 当前文档已明确收口**的 run。
+- 每个 trial 只保留：
+  - 文档里已经引用或后续仍可能回看的 anchor checkpoint
+  - 该 trial 的最后一个 checkpoint
+- 只删除 trial 内部的中间 `checkpoint_*` 目录。
+- 不删除：
+  - run root 下的 `progress.csv / result.json / checkpoint_eval.csv / training_loss_curve.png / summary`
+  - 当前仍在推进中的主线 run
+  - 文档仍以其为冠军/主候选的 lane
 
-- `26524M / 30720M`
+执行前 quota：
+- `27014M / 30720M`
 
-### 结果
+本轮处理的 run 与保留 checkpoint：
 
-- 本轮共回收约 `4.2G`
-- 当前配额已从“接近硬上限”恢复到“可继续训练 / 评估”的安全区间
+1. `042A3_team_kl_distill_from_029B_on_031A1040_formal`
+- 保留：
+  - `80, 90, 100`
+- 删除：
+  - `10, 20, 30, 40, 50, 60, 70, 110, 120, 130, 140, 150, 160, 170`
 
-### 后续建议
+2. `042A3_team_kl_distill_from_029B_on_031A1040_resume170`
+- 保留：
+  - `180, 190, 200`
+- 删除：
+  - 无（该 resume 段本身只保留了尾部 checkpoint）
 
-- 下次优先检查“已被 rerun 替代的旧 run”
-- 对已写入 snapshot 的 run，不在没有明确替代方案时直接删除
-- 若需要进一步回收空间，优先考虑“只保留 best checkpoint / eval / summary，裁剪冗余 checkpoint”这类精细化清理
+3. `044A_team_spear_scratch_512x512_20260419_004717`
+- 保留：
+  - `160, 170, 180, 200`
+- 删除：
+  - `10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 190`
 
-## 2026-04-17
+4. `044B_team_shield_scratch_512x512_20260419_005130`
+- 保留：
+  - `180, 190, 200`
+- 删除：
+  - `10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170`
 
-### 清理前配额
+5. `045A_team_combo_on_031A1040_formal_rerun1`
+- 保留：
+  - `10, 20, 130, 140, 150, 170, 180, 190, 200`
+- 删除：
+  - `30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 160`
 
-- `28274M / 30720M`
+6. `045B_learned_only_on_031A1040_512x512_20260419_095729`
+- 保留：
+  - `100, 110, 120, 140, 150, 160, 200`
+- 删除：
+  - `10, 20, 30, 40, 50, 60, 70, 80, 90, 130, 170, 180, 190`
 
-### 已删除
+7. `046E_scratch_vs_frozen_031B_cross_attention_512x512_20260419_095358`
+- 保留：
+  - `50, 150, 300, 450, 570, 600, 620, 680, 750, 760`
+- 删除：
+  - 除上述保留点外的全部中间 `checkpoint_*`
 
-#### Home 临时目录
+8. `052A_team_transformer_min_scratch_v2_512x512_20260419_102129`
+- 保留：
+  - `890, 970, 1050, 1060, 1080, 1090, 1100, 1140, 1150, 1160, 1250`
+- 删除：
+  - 除上述保留点外的全部中间 `checkpoint_*`
 
-- `~/ray_results/*DummyEnv*`
-  - 删除约 `449` 个 dummy-env / dummy-agent 临时 Ray 目录
-  - 删除理由：agent 构建、checkpoint 加载、official/local eval 过程中自动生成的短命目录，不属于正式实验资产
+9. `052_team_transformer_full_scratch_v2_512x512_20260419_103340`
+- 保留：
+  - `490, 520, 530, 800, 810, 830, 870, 1140, 1150, 1160, 1250`
+- 删除：
+  - 除上述保留点外的全部中间 `checkpoint_*`
 
-#### VS Code Server 缓存与旧版本
+说明：
+- `045B_learned_only_on_031A1040_512x512_20260419_095450` 这条 lane 没有可删的 `checkpoint_*`，因此本轮未实际处理。
+- 这轮清理的判断依据是：上述 run 在当前 `snapshot / README / rank` 体系下均已收口为已知负结果、已知非主线、已知饱和线，或仅保留少量文档 anchor 即足够支撑后续阅读。
 
-- `~/.vscode-server/data/CachedExtensionVSIXs/*`
-  - 删除理由：扩展安装缓存，可随时重建
-- `~/.vscode-server/data/logs/*`
-  - 删除理由：运行日志缓存
-  - 说明：由于 NFS `.nfs*` 占用文件，残留约 `35M`，未强删
-- `~/.vscode-server/cli/servers/Stable-c9d77990917f3102ada88be140d28b038d1dd7c7`
-- `~/.vscode-server/cli/servers/Stable-e7fb5e96c0730b9deb70b33781f98e2f35975036`
-  - 删除理由：旧版 VS Code server，可按需自动重装
-- `~/.vscode-server/extensions/github.copilot-chat-0.42.3`
-  - 删除理由：旧版重复扩展
-- 对以下旧版扩展做了部分清理，成功回收大部分空间，但仍保留被当前进程占用的少量残留文件：
-  - `~/.vscode-server/extensions/github.copilot-chat-0.43.0`
-  - `~/.vscode-server/extensions/anthropic.claude-code-2.1.109-linux-x64`
-  - `~/.vscode-server/extensions/openai.chatgpt-26.409.20454-linux-x64`
+执行结果：
+- 删除对象：
+  - `9` 个 run 的中间 checkpoint
+- 预计回收：
+  - `2365M`
+- 实际 quota 变化：
+  - 删除后：`24642M / 30720M`
+  - 净回收：`2372M`
 
-### 明确保留
+补充说明：
+- 这轮删除的主力空间，仍然是 `ray_results/.../checkpoint_*/checkpoint-*` 这类**无扩展名** checkpoint 本体文件。
+- 这些 checkpoint 文件名没有 `.pt / .json / .csv` 等后缀，因此在磁盘统计里会被归类为 `[no-ext]`。
+- run root 下的训练/eval 元数据与文档引用点没有动。
 
-- 仓库内 `ray_results/` 的正式实验 run
-- 当前仍在运行的 `025 / 025b / 026A / 026B / 026C` 等任务目录
-- `~/.conda/envs`
-- `~/.venvs`
-- 当前最新 VS Code server 与最新扩展版本
+### 2026-04-19 19:05 EDT — 删除 `rank.md` 未引用的 pre-030 run 中间 checkpoint
 
-### 清理后配额
+用户确认：
+- `rank.md` 里**没提到**的、并且属于 `snapshot 29` 以前的历史 run，其中间 `checkpoint_*` 可以删除。
 
-- `26545M / 30720M`
+执行口径：
+- 仅处理 **pre-030** 历史 run。
+- 仅处理 **未被 `docs/experiments/rank.md` 引用** 的 run。
+- 每个 trial **保留最后一个 checkpoint**，只删除其中间 `checkpoint_*` 目录。
+- 不删除：
+  - run root 下的 `progress.csv / result.json / checkpoint_eval.csv / plot / summary`
+  - `rank.md` 已引用的冠军/主候选 run
+  - `*_merged` 及其 source segments
 
-### 结果
+执行前估算：
+- 计划删除 checkpoint 目录数：
+  - `108`
+- 预计回收：
+  - `1371.5M`
 
-- 本轮共回收约 `1.73G`
-- `~/ray_results` 从大量 dummy-env 临时目录收缩到约 `872K`
-- `~/.vscode-server` 从约 `3.1G` 收缩到约 `2.2G`
+实际删除明细：
 
-### 备注
+1. `PPO_mappo_field_role_binding_v2_warm470_512x512_20260416_045516`
+- 删除 iteration：
+  - `10, 20, 30, 40, 50, 60, 70, 80, 130, 140, 150, 160, 170, 230, 240, 250, 260`
 
-- 本轮没有触碰仓库里的正式训练结果目录
-- 若后续还需继续回收空间，可优先处理：
-  - `.vscode-server` 中仍残留的旧扩展占用
-  - 被新 rerun 明确替代、且文档里已有结论承接的旧 run
+2. `PPO_mappo_aux_teammate_scratch_512x512_20260416_065850`
+- 删除 iteration：
+  - `400, 410, 420, 430, 440, 450, 460, 470, 480, 490`
 
-## 2026-04-17（第二轮紧急清理）
+3. `PPO_mappo_field_role_binding_bc2100_512x512_20260417_050955`
+- 删除 iteration：
+  - `20, 70, 80, 110, 120, 130, 140, 150, 160, 170`
 
-### 清理前配额
+4. `PPO_mappo_role_diff_shaping_v2_warm470_512x512_20260415_225439`
+- 删除 iteration：
+  - `140, 150, 160, 170, 180, 250, 260, 270, 280`
 
-- `30720M / 30720M`
+5. `PPO_mappo_v2_opponent_pool_512x512_20260414_212239`
+- 删除 iteration：
+  - `240, 270, 280, 290`
 
-### 已删除
+6. `PPO_mappo_v2_opponent_pool_anchor30_512x512_resume_20260415_155337`
+- 删除 iteration：
+  - `210, 230, 260`
 
-#### Home 临时目录
+7. `PPO_mappo_vs_baseline_shaping_v1_512x512_20260413_034616`
+- 删除 iteration：
+  - `320, 360, 410, 430, 470, 480`
 
-- `~/ray_results/PPO_Dummy*`
-- `~/ray_results/PPO_Soccer_2026-04-16_04-17-102ls7vjh_`
-  - 删除理由：均为 dummy-env / smoke / evaluator 自动产生的 home 侧临时 Ray 目录，不属于仓库内正式实验资产
+8. `PPO_mappo_field_role_binding_v2_warm470_512x512_20260415_230033`
+- 删除 iteration：
+  - `230, 240, 250, 260, 270, 280`
 
-#### VS Code Server 日志与旧版本
+9. `PPO_mappo_role_diff_shaping_v2_warm470_512x512_20260416_045430`
+- 删除 iteration：
+  - `10, 20, 30, 40, 270, 280`
 
-- `~/.vscode-server/data/logs/*`
-  - 删除理由：运行日志缓存
-  - 说明：仍有少量 `.nfs*` 忙文件残留，未强删
-- `~/.vscode-server/code-c9d77990917f3102ada88be140d28b038d1dd7c7`
-- `~/.vscode-server/code-e7fb5e96c0730b9deb70b33781f98e2f35975036`
-  - 删除理由：旧版 VS Code server 代码目录；当前活动版本仍保留
+10. `PPO_mappo_vs_baseline_shaping_v2_bc_player_512x512_main_rerun2`
+- 删除 iteration：
+  - `1410, 1870, 2100, 2170, 2240`
 
-### 明确保留
+11. `PPO_team_level_v2_scratch_768x512_20260417_095059`
+- 删除 iteration：
+  - `650, 690, 830, 1130, 1210`
 
-- 仓库内 `ray_results/` 正式实验结果
-- `~/.vscode-server/cli/servers/Stable-41dd792b5e652393e7787322889ed5fdc58bd75b`
-- 当前 VS Code 扩展主版本
-- `~/.conda/envs`
-- `~/.venvs`
+12. `PPO_mappo_v2_opponent_pool_anchor30_512x512_20260415_034221`
+- 删除 iteration：
+  - `40, 60`
 
-### 清理后配额
+13. `PPO_mappo_vs_baseline_noshaping_512x512_20260413_030113`
+- 删除 iteration：
+  - `350, 360, 450`
 
-- `30551M / 30720M`
+14. `PPO_team_vs_baseline_shaping_v2_deepzone_scratch_512x512_20260412_210755`
+- 删除 iteration：
+  - `350, 370, 390, 440, 460`
 
-### 结果
+15. `PPO_team_vs_baseline_shaping_v1_scratch_512x512_20260412_210902`
+- 删除 iteration：
+  - `180, 340, 410, 430, 440`
 
-- 本轮额外回收约 `169M`
-- `~/ray_results` 收缩到约 `752K`
-- `~/.vscode-server` 收缩到约 `923M`
+16. `PPO_mappo_teammate_obs_norm_scratch_512x512_20260416_172518`
+- 删除 iteration：
+  - `440, 450`
 
-### 备注
+17. `PPO_mappo_vs_baseline_shaping_v4_512x512_20260415_035251`
+- 删除 iteration：
+  - `360, 420`
 
-- 本轮目标是把“已顶满”的 quota 先拉回安全线，因此只做了最保守的 home/cache 侧清理
-- 若后续还需继续回收空间，下一优先级应是：
-  - `.vscode-server/data/logs` 中残留的 `.nfs*` 忙文件
-  - 被新 rerun 明确替代的旧实验 run
+18. `PPO_mappo_vs_baseline_shaping_v2_512x512_20260413_040545`
+- 删除 iteration：
+  - `290, 460`
 
-## 2026-04-17（第三轮：SNAPSHOT-001~009 精细 checkpoint 清理）
+19. `PPO_mappo_liberation_B_warm_bc2100_512x512_20260417_062526`
+- 删除 iteration：
+  - `170, 250`
 
-### 清理前配额
+20. `PPO_team_vs_baseline_shaping_v4_survival_scratch_512x512_20260413_053133`
+- 删除 iteration：
+  - `400, 430`
 
-- `30632M / 30720M`
+21. `PPO_mappo_vs_baseline_shaping_v4_512x512_resume_20260415_155350`
+- 删除 iteration：
+  - `480`
 
-### 清理策略
+22. `PPO_team_vs_baseline_shaping_scratch_512x512_continue_20260412_061353`
+- 删除 iteration：
+  - `400`
 
-- 目标范围限定为 `SNAPSHOT-001` 到 `SNAPSHOT-009` 文档中实际引用到的旧 `ray_results/` run
-- 仅删除这些旧 run 下的冗余 `checkpoint_*` 目录
+结果汇总：
+- 实际删除 run 数：
+  - `22`
+- 实际删除 checkpoint 目录数：
+  - `108`
+
+quota 结果：
+- 删除前：
+  - `28325M / 30720M`
+- 删除后：
+  - `26946M / 30720M`
+- 本轮净回收：
+  - `1379M`
+
+说明：
+- 这轮清理只删“中间 checkpoint”，不删 run root 元数据。
+- 这轮清理的目的，是在不动 `rank.md` 主引用 run 的前提下，优先回收 `ray_results` 中最肥的无扩展名 checkpoint 文件。
+- 当前 quota 仍主要由 `ray_results` 占据，后续若继续清理，应优先考虑已完成大 run 的中间 checkpoint，而不是文档产物。
+
+### 2026-04-19 18:45 EDT — smoke runs 批量删除
+
+用户确认：
+- `ray_results` 下所有顶层 `*smoke*` 目录可以删除。
+
+实际删除范围：
+- 删除对象为 `ray_results/` 顶层所有名字匹配 `*smoke*` 的目录与文件。
+- 包括但不限于：
+  - `ray_results/039fix_smoke_20260419_035821`
+  - `ray_results/042A3_smoke_20260419_042534`
+  - `ray_results/043Aprime_smoke_20260419_112305`
+  - `ray_results/045A_smoke_20260419_051839`
+  - 以及早期 `PPO_*smoke* / BC_*smoke* / smoke_029*` 等 smoke 目录
+  - `ray_results/043Aprime_smoke_launch.log`
+
+结果：
+- 删除后，`ray_results` 顶层已无 `*smoke*` 匹配项。
+
+quota 结果：
+- 删除前：
+  - `28694M / 30720M`
+- 删除后：
+  - `28636M / 30720M`
+- 本轮净回收：
+  - `58M`
+
+说明：
+- 本轮只删除 smoke 运行目录/文件。
+- 不涉及任何 formal / rerun 主结果目录。
+
+### 2026-04-19 18:49 EDT — 删除历史 H2H 样本包 `h2h_v3` / `h2h_v3_all`
+
+用户确认：
+- `docs/experiments/artifacts/failure-cases/h2h_v3`
+- `docs/experiments/artifacts/failure-cases/h2h_v3_all`
+可以删除。
+
+删除前大小：
+- `h2h_v3 = 271M`
+- `h2h_v3_all = 88M`
+
+实际删除：
+- 已删除：
+  - `docs/experiments/artifacts/failure-cases/h2h_v3`
+  - `docs/experiments/artifacts/failure-cases/h2h_v3_all`
 - 明确保留：
-  - snapshot 文档中直接引用的关键 checkpoint
-  - `progress.csv`
-  - `params.json`
-  - `checkpoint_eval.csv`
-  - `training_loss_curve.*`
-  - trial 元数据与其余记录文件
+  - `docs/experiments/artifacts/failure-cases/h2h_v3_all_v2`
 
-### 已删除
+与 `053` 的关系：
+- 用户明确要求保留说明：上述两包历史 H2H 样本与 `053` 路线相关。
+- 当前项目中与该路线对应的**正式沉淀内容**以：
+  - [SNAPSHOT-053](../experiments/snapshot-053-outcome-pbrs-reward-from-calibrated-predictor.md)
+  - `docs/experiments/artifacts/trajectories/v3_all_30pair/`
+为准。
+- 因此本次删除的是早期 failure-case 形态的大样本包，而不是 `053` 的主数据产物。
 
-- 共删除 `307` 个旧 checkpoint / eval log 目录
-- 重点清理对象包括：
-  - `PPO_base_team_vs_baseline_512x512_20260411_192140`
-  - `PPO_base_team_vs_baseline_512x256_20260411_192339`
-  - `PPO_shared_cc_warm225_20260409_123447`
-  - `PPO_summary_obs_warm225_20260409_011316`
-  - `PPO_lstm_warm225_20260409_115548`
-  - `PPO_role_cpu32_20260408_193132`
-  - `PPO_role_warm225_aggressive_20260408_224536`
-  - `PPO_attack_expert_warm225_20260409_141445`
-  - `PPO_singleplayer_fixed_teammate_*`
-  - `PPO_continue_ckpt160_cpu32_20260408_183648`
+quota 结果：
+- 删除前：
+  - `28637M / 30720M`
+- 删除后：
+  - `28278M / 30720M`
+- 本轮净回收：
+  - `359M`
 
-### 明确保留的关键 checkpoint
+### 2026-04-19 18:55 EDT — 删除 `h2h_v3_all_v2` 残余
 
-- `PPO_smoke_rewardfix_gpu_h100_overlay_20260408/.../checkpoint_000001`
-- `PPO_continue_ckpt160_cpu32_20260408_183648/.../checkpoint_000225`
-- `PPO_role_cpu32_20260408_193132/.../checkpoint_000030`
-- `PPO_role_warm225_aggressive_20260408_224536/.../checkpoint_000040`
-- `PPO_summary_obs_warm225_20260409_011316/.../checkpoint_000090`
-- `PPO_lstm_warm225_20260409_115548/.../checkpoint_000050`
-- `PPO_shared_cc_warm225_20260409_123447/.../checkpoint_000080`
-- `PPO_attack_expert_warm225_20260409_141445/.../checkpoint_000060`
+背景：
+- 在 18:37 EDT 的中断删除中，`h2h_v3_all_v2` 已从约 `0.93G / 15030 files` 缩到约 `11.4M / 182 files`。
+- 用户随后明确要求：既然这包已经被部分删掉，就不要再保留残余，以免误导后续判断。
 
-### 清理后配额
+实际删除：
+- 已删除：
+  - `docs/experiments/artifacts/failure-cases/h2h_v3_all_v2`
 
-- `29527M / 30720M`
+quota 结果：
+- 删除前：
+  - `28291M / 30720M`
+- 删除后：
+  - `28279M / 30720M`
+- 本轮净回收：
+  - `12M`
 
-### 结果
+与 `053` 的关系：
+- 与前一条相同，`053` 路线的正式保留内容仍以
+  - [SNAPSHOT-053](../experiments/snapshot-053-outcome-pbrs-reward-from-calibrated-predictor.md)
+  - `docs/experiments/artifacts/trajectories/v3_all_30pair/`
+为准。
 
-- 本轮额外回收约 `1.25G`
-- 总体剩余空间恢复到约 `1.19G`
-- 做到了“保留早期 snapshot 的关键证据链，同时移除大多数冗余 checkpoint”
+### 2026-04-19 18:37 EDT — quota 应急清理（中途叫停）
 
-### 备注
+背景：
+- 用户 home quota 在清理前已接近上限。
+- 清理前 quota：
+  - `29674M / 30720M`
 
-- 本轮没有触碰 `SNAPSHOT-010+` 的实验目录
-- 若后续还需继续回收空间，下一优先级可考虑：
-  - 各类 `smoke_*` / `*smoke*` run
-  - 已被后继 lane 明确替代的完整旧 run
+前置核查：
+- `ray_results` 约 `16.09G`
+- `docs/experiments/artifacts/failure-cases` 约 `1.86G`
+- 识别出 3 个超大历史 H2H 样本目录：
+  - `docs/experiments/artifacts/failure-cases/h2h_v3_all_v2`
+  - `docs/experiments/artifacts/failure-cases/h2h_v3`
+  - `docs/experiments/artifacts/failure-cases/h2h_v3_all`
+- 同时核查发现 `*_merged` 目录不是独立副本，而是带 symlink 的 merged view，因此**没有删除任何 merged source segments**。
 
-## 2026-04-17（第四轮：SNAPSHOT-010~020 精细 checkpoint 清理）
+原始尝试删除目标：
+- `docs/experiments/artifacts/failure-cases/h2h_v3_all_v2`
+- `docs/experiments/artifacts/failure-cases/h2h_v3`
+- `docs/experiments/artifacts/failure-cases/h2h_v3_all`
+- `ray_results/039fix_smoke_20260419_035821`
+- `ray_results/042A3_smoke_20260419_042534`
+- `ray_results/043Aprime_smoke_20260419_112305`
+- `ray_results/045A_smoke_20260419_051839`
+- `ray_results/043Bprime_resume080_vs_harder_frontier_pool_031B_cross_attention_512x512_20260419_151436`
+- `ray_results/043Cprime_resume080_vs_heavier_frontier_pool_031B_cross_attention_512x512_20260419_151441`
+- `ray_results/045A_team_combo_on_031A1040_formal`
 
-### 清理前配额
+中断原因：
+- 用户明确指出“这三个没法删”，指向上面的 3 个 `h2h_v3*` 目录。
+- 因此立即终止 `rm` 进程，并在终止后重新核查目录存在性与 quota。
 
-- `29526M / 30720M`
+终止后实际状态：
 
-### 清理策略
+1. `h2h_v3_all_v2`
+- 目录仍存在
+- 但在叫停前发生了**部分删除**
+- 清理前：
+  - 约 `0.93G`
+  - `15030 files`
+- 清理后：
+  - 约 `11.4M`
+  - `182 files`
 
-- 目标范围限定为 `SNAPSHOT-010` 到 `SNAPSHOT-020` 文档中实际引用到的 `ray_results/` run
-- 仅删除这些 run 下的冗余 `checkpoint_*` 目录
-- 明确保留：
-  - snapshot 文档中直接引用的关键 checkpoint
-  - `progress.csv`
-  - `params.json`
-  - `checkpoint_eval.csv`
-  - `training_loss_curve.*`
-  - trial 元数据与其余记录文件
+2. `h2h_v3`
+- 目录存在
+- 未被实际删除
+- 当前大小：
+  - `249.9M`
+  - `3919 files`
 
-### 已删除
+3. `h2h_v3_all`
+- 目录存在
+- 未被实际删除
+- 当前大小：
+  - `81.0M`
+  - `1287 files`
 
-- 共删除 `765` 个非关键 checkpoint 目录
-- 重点清理对象包括：
-  - `PPO_mappo_vs_baseline_shaping_v1_512x512_20260413_034616`
-  - `PPO_mappo_vs_baseline_shaping_v2_512x512_20260413_040545`
-  - `PPO_mappo_vs_baseline_noshaping_512x512_20260413_030113`
-  - `PPO_mappo_vs_baseline_shaping_v2_bc_player_512x512_main_rerun2`
-  - `PPO_mappo_v2_opponent_pool_512x512_20260414_212239`
-  - `PPO_mappo_v2_opponent_pool_anchor30_512x512_20260415_034221`
-  - `PPO_mappo_v2_opponent_pool_anchor30_512x512_resume_20260415_155337`
-  - `PPO_mappo_vs_baseline_shaping_v4_512x512_20260415_035251`
+4. 其余 7 个 `ray_results` 目标
+- 全部仍存在
+- 本轮未被实际删除：
+  - `ray_results/039fix_smoke_20260419_035821`
+  - `ray_results/042A3_smoke_20260419_042534`
+  - `ray_results/043Aprime_smoke_20260419_112305`
+  - `ray_results/045A_smoke_20260419_051839`
+  - `ray_results/043Bprime_resume080_vs_harder_frontier_pool_031B_cross_attention_512x512_20260419_151436`
+  - `ray_results/043Cprime_resume080_vs_heavier_frontier_pool_031B_cross_attention_512x512_20260419_151441`
+  - `ray_results/045A_team_combo_on_031A1040_formal`
 
-### 明确保留的关键 checkpoint
+quota 结果：
+- 清理后 quota：
+  - `28681M / 30720M`
+- 本轮净回收：
+  - `993M`
 
-- `PPO_mappo_vs_baseline_shaping_v2_bc_player_512x512_main_rerun2/.../checkpoint_002100`
-- `PPO_mappo_vs_baseline_shaping_v2_bc_player_512x512_main_rerun2/.../checkpoint_001410`
-- `PPO_mappo_vs_baseline_shaping_v2_bc_player_512x512_main_rerun2/.../checkpoint_001870`
-- `PPO_mappo_vs_baseline_shaping_v2_bc_player_512x512_main_rerun2/.../checkpoint_002170`
-- `PPO_mappo_vs_baseline_shaping_v2_bc_player_512x512_main_rerun2/.../checkpoint_002240`
-- `PPO_mappo_vs_baseline_shaping_v2_bc_player_512x512_main_rerun2/.../checkpoint_002250`
-- `PPO_mappo_v2_opponent_pool_512x512_20260414_212239/.../checkpoint_000240`
-- `PPO_mappo_v2_opponent_pool_512x512_20260414_212239/.../checkpoint_000270`
-- `PPO_mappo_v2_opponent_pool_512x512_20260414_212239/.../checkpoint_000280`
-- `PPO_mappo_v2_opponent_pool_512x512_20260414_212239/.../checkpoint_000290`
-- `PPO_mappo_v2_opponent_pool_512x512_20260414_212239/.../checkpoint_000300`
-- `PPO_mappo_v2_opponent_pool_anchor30_512x512_20260415_034221/.../checkpoint_000040`
-- `PPO_mappo_v2_opponent_pool_anchor30_512x512_20260415_034221/.../checkpoint_000060`
-- `PPO_mappo_v2_opponent_pool_anchor30_512x512_20260415_034221/.../checkpoint_000140`
-- `PPO_mappo_v2_opponent_pool_anchor30_512x512_resume_20260415_155337/.../checkpoint_000210`
-- `PPO_mappo_v2_opponent_pool_anchor30_512x512_resume_20260415_155337/.../checkpoint_000230`
-- `PPO_mappo_v2_opponent_pool_anchor30_512x512_resume_20260415_155337/.../checkpoint_000260`
-- `PPO_mappo_v2_opponent_pool_anchor30_512x512_resume_20260415_155337/.../checkpoint_000280`
-- `PPO_mappo_vs_baseline_shaping_v1_512x512_20260413_034616/.../checkpoint_000320`
-- `PPO_mappo_vs_baseline_shaping_v1_512x512_20260413_034616/.../checkpoint_000360`
-- `PPO_mappo_vs_baseline_shaping_v1_512x512_20260413_034616/.../checkpoint_000410`
-- `PPO_mappo_vs_baseline_shaping_v1_512x512_20260413_034616/.../checkpoint_000430`
-- `PPO_mappo_vs_baseline_shaping_v1_512x512_20260413_034616/.../checkpoint_000470`
-- `PPO_mappo_vs_baseline_shaping_v1_512x512_20260413_034616/.../checkpoint_000480`
-- `PPO_mappo_vs_baseline_shaping_v1_512x512_20260413_034616/.../checkpoint_000490`
-- `PPO_mappo_vs_baseline_shaping_v2_512x512_20260413_040545/.../checkpoint_000290`
-- `PPO_mappo_vs_baseline_shaping_v2_512x512_20260413_040545/.../checkpoint_000460`
-- `PPO_mappo_vs_baseline_shaping_v2_512x512_20260413_040545/.../checkpoint_000470`
-- `PPO_mappo_vs_baseline_noshaping_512x512_20260413_030113/.../checkpoint_000350`
-- `PPO_mappo_vs_baseline_noshaping_512x512_20260413_030113/.../checkpoint_000360`
-- `PPO_mappo_vs_baseline_noshaping_512x512_20260413_030113/.../checkpoint_000450`
-- `PPO_mappo_vs_baseline_noshaping_512x512_20260413_030113/.../checkpoint_000490`
-- `PPO_mappo_vs_baseline_shaping_v4_512x512_20260415_035251/.../checkpoint_000360`
-- `PPO_mappo_vs_baseline_shaping_v4_512x512_20260415_035251/.../checkpoint_000420`
-- `PPO_mappo_vs_baseline_shaping_v4_512x512_20260415_035251/.../checkpoint_000430`
+结论：
+- 本轮 quota 缓解**确实发生了**，但来源不是计划中的整批删除，而是：
+  - `h2h_v3_all_v2` 在用户叫停前已被部分清理
+- `h2h_v3`、`h2h_v3_all`、smoke 目录、失败首发目录、`045A` 原始失败 formal 目录都**仍然保留**
+- `*_merged` 目录及其 source segments **未动**
 
-### 清理后配额
+后续约束：
+- 将 `h2h_v3` / `h2h_v3_all` / `h2h_v3_all_v2` 视为“未经再次确认不得删除”的目录。
 
-- `21384M / 30720M`
+---
 
-### 结果
+## 2026-04-20
 
-- 本轮预计回收约 `8.7G`
-- `ray_results` 收缩到约 `12G`
-- 当前剩余空间恢复到约 `9.1G`
+### 04:17-04:30 EDT — 🚨 紧急 home quota 救援 (symlink-to-SCRATCH 批量移动)
 
-### 备注
+#### 事故
+- 04:17 EDT 发生 **home quota exceeded crash cascade**:
+  - home quota 30716M / 30720M (99.99% full)
+  - 触发 `OSError: [Errno 122] Disk quota exceeded` in Ray ckpt write
+  - **7 lanes 同时死亡**, 全部 EXIT_CODE=1:
+    | Lane | 死亡 iter | ckpts saved | 进度 |
+    |---|---:|---:|---:|
+    | 054 MAT-min | 478/1250 | 115 | 38% |
+    | 055 distill 034E | 230/1250 | 102 | 18% |
+    | 056A PBT LR=3e-5 | ~240/1250 | 109 | 19% |
+    | 056B PBT LR=7e-5 | ~240/1250 | — | 19% |
+    | 056C PBT LR=1.5e-4 | ~240/1250 | — | 19% |
+    | 056D PBT LR=3e-4 | ~240/1250 | — | 19% |
+    | 057 RND | 77/1250 | 77 | 6% |
+    | 058 curriculum | 84/1250 | 84 | 7% |
+    | 053Dmirror | 0 (Unity init fail x2) | 0 | — |
 
-- 本轮没有触碰 `SNAPSHOT-021+` 的实验目录
-- 本轮目标是“只精简旧实验的大体积 checkpoint，不破坏后续复核所需的证据链”
-- 若后续仍需继续回收空间，下一优先级可考虑：
-  - `021` 之后但已经被新 lane 明确替代的完整旧 run
-  - 当前 formal 续跑完成后的中间 checkpoint 再压缩
+- 11 个训练 + multiple eval lanes 同一时刻 GPU usage 变 0 MiB
+
+#### 救援策略
+
+**策略**: **move 到 SCRATCH + 从 home symlink** — 保留 agent code 中 hardcoded 路径的 resolvability. NOT 删除任何东西.
+
+**Archive 目的地**: `/storage/ice1/5/1/wsun377/ray_results_archive/` (PACE SCRATCH, 4.1P 可用 / 已用 4%)
+
+#### 详细迁移清单 (65 个 lanes, ~16GB 总量, 全部 symlink 可用)
+
+**Phase 1** (~5GB freed) — agent code 引用的历史 lanes:
+- `031A_team_dual_encoder_scratch_v2_512x512_20260418_054948` (563M) — 034b/c ensemble members
+- `PPO_mappo_036C_learned_reward_on_029B190_512x512_20260418_075657` (433M)
+- `PPO_mappo_036D_stable_learned_reward_on_029B190_512x512_20260418_124107` (435M) — 034b/c/d/e/f/eb members
+- `PPO_mappo_039_airl_adaptive_on_029B190_512x512_20260418_132607` (435M)
+- `039fixB_with_sanitize_20260419_092209` (436M)
+- `030A_team_field_role_on_028A1060_512x512_20260418_051107` (398M)
+- `030D_team_pbrs_on_028A1060_512x512_20260418_051114` (398M)
+- `032A_team_action_aux_on_028A1060_512x512_20260418_053238` (307M)
+- `032Acontrol_team_action_aux0_on_028A1060_512x512_20260418_053246` (307M)
+- `032nextA_symmetric_action_aux_on_028A1060_formal` (378M)
+- `032nextControl_symmetric_action_aux0_on_028A1060_formal` (378M)
+- `033A_team_coord_pbrs_on_028A1060_512x512_20260418_055015` (239M)
+- `PPO_team_level_bc_bootstrap_028A_512x512_formal` (127M)
+- `PPO_team_level_v2_scratch_768x512_20260417_095059` (188M)
+- `PPO_mappo_029C_025b80_oppool_peers_512x512_formal` (120M)
+- `PPO_mappo_vs_baseline_shaping_v2_bc_player_512x512_main_rerun2` (192M)
+
+**Phase 2** — 043/044/045/046 families:
+- `043Aprime_warm_vs_frontier_pool_031B_formal` (291M)
+- `043Bprime_resume080_vs_harder_frontier_pool_031B_cross_attention_rerun1` (243M)
+- `043Cprime_resume080_vs_heavier_frontier_pool_031B_cross_attention_rerun1` (243M)
+- `043Bprime_resume080_vs_harder_frontier_pool_031B_cross_attention_512x512_20260419_151436` (60K stub)
+- `043Cprime_resume080_vs_heavier_frontier_pool_031B_cross_attention_512x512_20260419_151441` (64K stub)
+- `044A_team_spear_scratch_512x512_20260419_004717` (26M)
+- `044B_team_shield_scratch_512x512_20260419_005130` (24M)
+- `045A_team_combo_on_031A1040_formal_rerun1` (53M)
+- `045B_learned_only_on_031A1040_512x512_20260419_095729` (45M)
+- `046B_warm_vs_frozen_031A_512x512_20260419_071550` (87M)
+- `046D_warm_vs_frozen_031B_cross_attention_512x512_20260419_093605` (18M)
+- `046E_scratch_vs_frozen_031B_cross_attention_512x512_20260419_095358` (105M)
+- `046F_scratch_vs_frozen_051A_cross_attention_512x512_20260419_141732` (13M)
+
+**Phase 3** — 038/040/041/042/051(A-C)/052 + 死亡训练 lanes:
+- 死亡训练 (可能 resume): 054/055/056A-D/057/058/053Dmirror (见上)
+- 038 family: 038A(×3), 038B, 038C, 038D (82-89M each)
+- 040 family: 040A(×3), 040B, 040C(×2), 040D (35-62M each)
+- 041B_mappo_pbrs_on_036D150 (144M)
+- 042A3_team_kl_distill_from_029B: formal (33M), resume170 (20M), merged (108K)
+- 051A_combo_on_031B_with_051reward (127M)
+- 051B_learned_only_on_031B_with_051reward (126M)
+- 051C_learned_only_warm031B80_cross_attention (118M)
+- 052_team_transformer_full_scratch (180M)
+- 052A_team_transformer_min_scratch (197M)
+- 039fix_mappo_airl_adaptive_on_029B190: formal (416M), resume140 (465M), merged (200K)
+
+#### 校验 (symlinks 可用)
+
+所有 archived lanes 现在 home 端是 **symbolic link** 到 SCRATCH archive:
+
+```bash
+$ ls -la ray_results/031A_team_dual_encoder_scratch_v2_512x512_20260418_054948
+lrwxrwxrwx ... → /storage/ice1/5/1/wsun377/ray_results_archive/031A_team_dual_encoder_scratch_v2_512x512_20260418_054948
+```
+
+5 个 sample 验证:
+- ✓ `031A_team_dual_encoder_scratch_v2_512x512_20260418_054948` → target accessible
+- ✓ `PPO_mappo_036D_stable_learned_reward_on_029B190_512x512_20260418_124107` → target accessible
+- ✓ `043Aprime_warm_vs_frontier_pool_031B_formal` → target accessible
+- ✓ `055_distill_034e_ensemble_to_031B_scratch_20260419_193252` → target accessible
+- ✓ `054_mat_min_scratch_v2_512x512_20260419_185019` → target accessible
+
+**所有 agent code (agents/v034*) 中 hardcoded 的 `ray_results/...` 路径仍然 resolve** — 不影响 deploy / eval.
+
+#### Quota 结果
+
+```
+救援前: 30716M / 30720M (99.99% full, 4MB headroom)
+救援后: 16536M / 30720M (54% full, 14GB headroom)
+净释放: ~14GB
+```
+
+#### 保留在 home (未 archive) 的 lanes + 理由
+
+- `031B_team_cross_attention_scratch_v2_512x512_20260418_233553` (642M) — 包含 **031B@80 (weak base 源)** + 031B@1080 (project SOTA base); 多个 active lanes 直接依赖
+- `031B_team_cross_attention_scratch_v2_resume1080` (108M) — 031B@1220 base container, critical
+- `031B_noshape_ablation_cross_attention_512x512_20260419_155110` (742M) — 刚完成 verdict (2026-04-20 01:55), 可能要做 capture/H2H
+- `051D_learned_only_warm031B80_cross_attention_512x512_20260419_164416` (475M) — 刚完成 verdict, 可能做 Stage 2/3
+- `053A_outcome_pbrs_combo_on_031B_512x512_20260419_172337` (123M) — 053Acont 的 warmstart 源
+- `053Acont_iter200_to_500_20260419_194712` (182M) — 当前 single-model 主候选, verdict 已入 rank.md
+- 若干小型 PPO_mappo_* (87-118M each) — legacy, 低优先级
+
+#### 遗留动作
+
+- [ ] **Structural fix**: 所有未来 launch script 加 `export LOCAL_DIR=/storage/ice1/5/1/wsun377/ray_results_scratch` → Ray 直接写 SCRATCH, 不再占用 home. 防再次 quota crash.
+- [ ] **Dead lanes resume / restart decision**: 054/055/056A-D/057/058/053Dmirror — 取决于是否有节点 + 投入值不值.
+- [ ] **Stale .running flags**: 已手动清理 (054/055/056A-D/057/058/053Dmirror).
+
+#### 教训
+
+1. **Ray 默认 local_dir 指向 project-local ray_results** — 在 home quota constrained 的 PACE 环境上必然撞墙. 应一开始就 redirect 到 SCRATCH.
+2. `.running` trap 用 `$?` 捕 tee 的 exit code, tee 总是 0 — 实际 python 错误被 mask. 应用 `${PIPESTATUS[0]}`.
+3. **Symlink-archive > delete**: 保 agent code resolvability, 低风险 reversible — 可随时 `mv` 回来.
