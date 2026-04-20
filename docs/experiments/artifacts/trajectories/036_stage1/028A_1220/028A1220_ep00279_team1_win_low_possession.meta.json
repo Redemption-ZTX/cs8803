@@ -1,0 +1,32 @@
+{
+  "episode_index": 279,
+  "team0_module": "cs8803drl.deployment.trained_team_ray_agent",
+  "team1_module": "ceia_baseline_agent",
+  "outcome": "team1_win",
+  "primary_label": "low_possession",
+  "labels": [
+    "low_possession"
+  ],
+  "metrics": {
+    "mean_ball_x": 9.524988671908012,
+    "tail_mean_ball_x": 9.524988671908012,
+    "team0_possession_ratio": 0.16,
+    "team1_possession_ratio": 0.84,
+    "team0_progress_toward_goal": 2.052108108997345,
+    "team1_progress_toward_goal": 0.0,
+    "team0_shaping_reward_sum": 0.0,
+    "team1_shaping_reward_sum": 0.0
+  },
+  "final_score": null,
+  "final_winner": null,
+  "cumulative_team0_reward": -2.0,
+  "cumulative_team1_reward": 1.948799967765808,
+  "total_steps": 26,
+  "_recording_config": {
+    "shaping_disabled": true,
+    "debug_info_only": true,
+    "trained_checkpoint": "/home/hice1/wsun377/Desktop/cs8803drl/ray_results/PPO_team_level_bc_bootstrap_028A_512x512_formal/TeamVsBaselineShapingPPOTrainer_Soccer_85a0f_00000_0_2026-04-17_19-16-54/checkpoint_001220/checkpoint-1220",
+    "action_encoding": "MultiDiscrete([3,3,3]) stored as (T, 3) int8",
+    "reward_semantics": "cumulative_team*_reward is pure sparse env reward (shaping=0)"
+  }
+}

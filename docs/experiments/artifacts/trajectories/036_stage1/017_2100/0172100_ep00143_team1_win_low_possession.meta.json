@@ -1,0 +1,33 @@
+{
+  "episode_index": 143,
+  "team0_module": "cs8803drl.deployment.trained_shared_cc_agent",
+  "team1_module": "ceia_baseline_agent",
+  "outcome": "team1_win",
+  "primary_label": "low_possession",
+  "labels": [
+    "low_possession",
+    "opponent_forward_progress"
+  ],
+  "metrics": {
+    "mean_ball_x": 6.993259819991448,
+    "tail_mean_ball_x": 8.467446611821652,
+    "team0_possession_ratio": 0.34523809523809523,
+    "team1_possession_ratio": 0.6547619047619048,
+    "team0_progress_toward_goal": 9.218401744961739,
+    "team1_progress_toward_goal": 12.879764914512634,
+    "team0_shaping_reward_sum": 0.0,
+    "team1_shaping_reward_sum": 0.0
+  },
+  "final_score": null,
+  "final_winner": null,
+  "cumulative_team0_reward": -2.0,
+  "cumulative_team1_reward": 1.8312000036239624,
+  "total_steps": 85,
+  "_recording_config": {
+    "shaping_disabled": true,
+    "debug_info_only": true,
+    "trained_checkpoint": "/home/hice1/wsun377/Desktop/cs8803drl/ray_results/PPO_mappo_vs_baseline_shaping_v2_bc_player_512x512_main_rerun2/MAPPOVsBaselineTrainer_Soccer_e53af_00000_0_2026-04-14_21-46-18/checkpoint_002100/checkpoint-2100",
+    "action_encoding": "MultiDiscrete([3,3,3]) stored as (T, 3) int8",
+    "reward_semantics": "cumulative_team*_reward is pure sparse env reward (shaping=0)"
+  }
+}

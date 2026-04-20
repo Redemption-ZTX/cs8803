@@ -1,0 +1,35 @@
+{
+  "episode_index": 352,
+  "team0_module": "cs8803drl.deployment.trained_shared_cc_agent",
+  "team1_module": "ceia_baseline_agent",
+  "outcome": "team1_win",
+  "primary_label": "late_defensive_collapse",
+  "labels": [
+    "late_defensive_collapse",
+    "territory_loss",
+    "low_possession",
+    "opponent_forward_progress"
+  ],
+  "metrics": {
+    "mean_ball_x": -4.565400732013415,
+    "tail_mean_ball_x": -5.37125758677721,
+    "team0_possession_ratio": 0.3269230769230769,
+    "team1_possession_ratio": 0.6730769230769231,
+    "team0_progress_toward_goal": 8.845337748527527,
+    "team1_progress_toward_goal": 18.584663957357407,
+    "team0_shaping_reward_sum": 0.0,
+    "team1_shaping_reward_sum": 0.0
+  },
+  "final_score": null,
+  "final_winner": null,
+  "cumulative_team0_reward": -2.0,
+  "cumulative_team1_reward": 1.8935999870300293,
+  "total_steps": 53,
+  "_recording_config": {
+    "shaping_disabled": true,
+    "debug_info_only": true,
+    "trained_checkpoint": "/home/hice1/wsun377/Desktop/cs8803drl/ray_results/PPO_mappo_vs_baseline_shaping_v2_bc_player_512x512_main_rerun2/MAPPOVsBaselineTrainer_Soccer_e53af_00000_0_2026-04-14_21-46-18/checkpoint_002100/checkpoint-2100",
+    "action_encoding": "MultiDiscrete([3,3,3]) stored as (T, 3) int8",
+    "reward_semantics": "cumulative_team*_reward is pure sparse env reward (shaping=0)"
+  }
+}

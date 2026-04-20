@@ -1,0 +1,33 @@
+{
+  "episode_index": 468,
+  "team0_module": "cs8803drl.deployment.trained_team_ray_agent",
+  "team1_module": "cs8803drl.deployment.trained_team_ray_opponent_agent",
+  "outcome": "team1_win",
+  "primary_label": "territory_loss",
+  "labels": [
+    "territory_loss",
+    "opponent_forward_progress"
+  ],
+  "metrics": {
+    "mean_ball_x": -1.9677263613790275,
+    "tail_mean_ball_x": 2.8087680406868456,
+    "team0_possession_ratio": 0.5316455696202531,
+    "team1_possession_ratio": 0.46835443037974683,
+    "team0_progress_toward_goal": 15.478186160326004,
+    "team1_progress_toward_goal": 26.852688312530518,
+    "team0_shaping_reward_sum": 0.0,
+    "team1_shaping_reward_sum": 0.0
+  },
+  "final_score": null,
+  "final_winner": null,
+  "cumulative_team0_reward": -2.0,
+  "cumulative_team1_reward": 1.8411999940872192,
+  "total_steps": 80,
+  "_recording_config": {
+    "shaping_disabled": true,
+    "debug_info_only": true,
+    "trained_checkpoint": null,
+    "action_encoding": "MultiDiscrete([3,3,3]) stored as (T, 3) int8",
+    "reward_semantics": "cumulative_team*_reward is pure sparse env reward (shaping=0)"
+  }
+}
