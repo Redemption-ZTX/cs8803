@@ -1,0 +1,27 @@
+#!/bin/bash
+# Experiment Lane:
+# SNAPSHOT-063:
+# - 055 ensemble distillation replay with only one change: distill temperature 2.0
+# - isolate temperature sharpening/softening effect from LR, alpha schedule, and teacher pool
+# - student stays 031B-arch; teacher stays 034E-style 3-teacher ensemble
+
+#SBATCH -J soccer-exp-team063
+#SBATCH -A ece
+#SBATCH -p coe-gpu
+#SBATCH --qos=coe-ice
+#SBATCH -N 1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+#SBATCH --gres=gpu:h100:1
+#SBATCH --mem=100G
+#SBATCH -t 16:00:00
+#SBATCH -o /home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/slurm-logs/soccer-exp-team063-%j.out
+
+set -euo pipefail
+
+cd /home/hice1/wsun377/Desktop/cs8803drl
+
+PORT_SEED=${PORT_SEED:-${SLURM_JOB_ID:-63}}
+export PORT_SEED
+
+bash scripts/eval/_launch_055temp_distill_T2.sh
