@@ -8,6 +8,17 @@
 # Theoretical support: MAT (Wen 2022) on SMAC, ATOC/AC-Atten/TarMAC for multi-agent RL.
 set -euo pipefail
 cd /home/hice1/wsun377/Desktop/cs8803drl
+
+# Running-flag convention (auto-manage .running / .done)
+LANE_TAG=054
+SLURM_LOG_DIR=docs/experiments/artifacts/slurm-logs
+mkdir -p $SLURM_LOG_DIR
+RUNNING_FLAG=$SLURM_LOG_DIR/${LANE_TAG}.running
+DONE_FLAG=$SLURM_LOG_DIR/${LANE_TAG}.done
+rm -f $DONE_FLAG
+touch $RUNNING_FLAG
+cleanup() { local rc=$?; rm -f $RUNNING_FLAG; echo "EXIT_CODE=$rc at $(date)" > $DONE_FLAG; }
+trap cleanup EXIT
 export LOCAL_DIR=/storage/ice1/5/1/wsun377/ray_results_scratch
 PYTHON_BIN=/home/hice1/wsun377/.venvs/soccertwos_h100/bin/python
 
@@ -57,7 +68,7 @@ export SHAPING_FAST_LOSS_THRESHOLD_STEPS=0 SHAPING_FAST_LOSS_PENALTY_PER_STEP=0
 # Budget: same as 031B (1250 iter scratch, 50M steps, ~12h)
 export TIMESTEPS_TOTAL=50000000 MAX_ITERATIONS=1250 TIME_TOTAL_S=43200 CHECKPOINT_FREQ=10
 
-export EVAL_INTERVAL=10 EVAL_EPISODES=50
+export EVAL_INTERVAL=10 EVAL_EPISODES=200
 export EVAL_BASE_PORT=$((55505 + PORT_OFFSET))
 export EVAL_MAX_STEPS=1500
 export EVAL_OPPONENTS=baseline,random

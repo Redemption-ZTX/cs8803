@@ -4,6 +4,17 @@
 # See snapshot-056-simplified-pbt-lr-sweep.md for design + simplification risks.
 set -euo pipefail
 cd /home/hice1/wsun377/Desktop/cs8803drl
+
+# Running-flag convention (auto-manage .running / .done)
+LANE_TAG=${LANE:-056?}
+SLURM_LOG_DIR=docs/experiments/artifacts/slurm-logs
+mkdir -p $SLURM_LOG_DIR
+RUNNING_FLAG=$SLURM_LOG_DIR/${LANE_TAG}.running
+DONE_FLAG=$SLURM_LOG_DIR/${LANE_TAG}.done
+rm -f $DONE_FLAG
+touch $RUNNING_FLAG
+cleanup() { local rc=$?; rm -f $RUNNING_FLAG; echo "EXIT_CODE=$rc at $(date)" > $DONE_FLAG; }
+trap cleanup EXIT
 export LOCAL_DIR=/storage/ice1/5/1/wsun377/ray_results_scratch
 PYTHON_BIN=/home/hice1/wsun377/.venvs/soccertwos_h100/bin/python
 
@@ -21,12 +32,14 @@ unset TEAM_DISTILL_ENSEMBLE_KL TEAM_DISTILL_TEACHER_ENSEMBLE_CHECKPOINTS
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 
 # Lane → LR + PORT_SEED mapping (per snapshot-056 §2.1, 2.3)
-LANE=${LANE:?LANE must be set, one of 056A/056B/056C/056D}
+LANE=${LANE:?LANE must be set, one of 056A/056B/056C/056D/056E/056F}
 case "$LANE" in
     056A) export LR_VAL=0.00003;  export PORT_SEED_VAL=41 ;;  # 0.3× 031B
     056B) export LR_VAL=0.00007;  export PORT_SEED_VAL=42 ;;  # 0.7× 031B
     056C) export LR_VAL=0.00015;  export PORT_SEED_VAL=43 ;;  # 1.5× 031B
     056D) export LR_VAL=0.00030;  export PORT_SEED_VAL=44 ;;  # 3.0× 031B
+    056E) export LR_VAL=0.00050;  export PORT_SEED_VAL=67 ;;  # 5× 031B (snapshot-065)
+    056F) export LR_VAL=0.00070;  export PORT_SEED_VAL=69 ;;  # 7× 031B (snapshot-065)
     *) echo "ERROR: unknown LANE '$LANE'" >&2; exit 1 ;;
 esac
 
@@ -62,7 +75,7 @@ export SHAPING_FAST_LOSS_THRESHOLD_STEPS=0 SHAPING_FAST_LOSS_PENALTY_PER_STEP=0
 # Budget (031B 同款)
 export TIMESTEPS_TOTAL=50000000 MAX_ITERATIONS=1250 TIME_TOTAL_S=43200 CHECKPOINT_FREQ=10
 
-export EVAL_INTERVAL=10 EVAL_EPISODES=50
+export EVAL_INTERVAL=10 EVAL_EPISODES=200
 export EVAL_BASE_PORT=$((55505 + PORT_OFFSET))
 export EVAL_MAX_STEPS=1500
 export EVAL_OPPONENTS=baseline,random
