@@ -47,6 +47,10 @@ from cs8803drl.branches.teammate_aux_head import (
     TEAMMATE_AUX_MODEL_NAME,
     register_shared_cc_teammate_aux_model,
 )
+from cs8803drl.branches.per_agent_distill import (
+    PER_AGENT_DISTILL_MODEL_NAME,
+    register_per_agent_distill_model,
+)
 from cs8803drl.core.checkpoint_utils import sanitize_checkpoint_for_restore
 from cs8803drl.core.utils import create_rllib_env
 from cs8803drl.training.train_ray_team_vs_random_shaping import (
@@ -395,6 +399,34 @@ def main():
     cc_obs_space = build_cc_obs_space(obs_space, act_space)
     register_shared_cc_model()
     register_shared_cc_teammate_aux_model()
+    register_per_agent_distill_model()
+
+    # snapshot-077 DIR-B: per-agent student distilled from team-level teacher ensemble.
+    # When enabled, swap the shared-cc model for the distill variant and wire
+    # the teacher ensemble config through custom_model_config.
+    per_agent_distill_enabled = _env_bool("PER_AGENT_STUDENT_DISTILL", False)
+    per_agent_distill_teacher_paths = (
+        os.environ.get("PER_AGENT_DISTILL_TEACHER_ENSEMBLE_CHECKPOINTS", "").strip()
+        or None
+    )
+    per_agent_distill_teacher_weights = (
+        os.environ.get("PER_AGENT_DISTILL_TEACHER_WEIGHTS", "").strip() or None
+    )
+    per_agent_distill_alpha_init = _env_float("PER_AGENT_DISTILL_ALPHA_INIT", 0.05)
+    per_agent_distill_alpha_final = _env_float("PER_AGENT_DISTILL_ALPHA_FINAL", 0.0)
+    per_agent_distill_decay_updates = _env_int("PER_AGENT_DISTILL_DECAY_UPDATES", 8000)
+    per_agent_distill_temperature = _env_float("PER_AGENT_DISTILL_TEMPERATURE", 1.0)
+
+    if per_agent_distill_enabled:
+        if aux_teammate_head:
+            raise ValueError(
+                "PER_AGENT_STUDENT_DISTILL is not composable with AUX_TEAMMATE_HEAD."
+            )
+        if not per_agent_distill_teacher_paths:
+            raise ValueError(
+                "PER_AGENT_STUDENT_DISTILL=1 requires "
+                "PER_AGENT_DISTILL_TEACHER_ENSEMBLE_CHECKPOINTS (comma-separated)."
+            )
 
     ray.init(include_dashboard=False)
     tune.registry.register_env("Soccer", create_rllib_env)
@@ -404,7 +436,12 @@ def main():
         baseline_policy_config["strip_obs_tail_dims"] = 4 + (1 if obs_include_time else 0)
 
     callbacks_cls = FillInTeammateActionsAndAuxLabels if aux_teammate_head else FillInTeammateActions
-    custom_model_name = TEAMMATE_AUX_MODEL_NAME if aux_teammate_head else SHARED_CC_MODEL_NAME
+    if per_agent_distill_enabled:
+        custom_model_name = PER_AGENT_DISTILL_MODEL_NAME
+    elif aux_teammate_head:
+        custom_model_name = TEAMMATE_AUX_MODEL_NAME
+    else:
+        custom_model_name = SHARED_CC_MODEL_NAME
 
     # snapshot-039: opt-in adaptive reward refresh. When enabled, compose
     # AdaptiveRewardCallback with the existing teammate-action callback via
@@ -451,11 +488,22 @@ def main():
             "vf_share_layers": vf_share_layers,
             "fcnet_hiddens": fcnet_hiddens,
             "fcnet_activation": fcnet_activation,
-            "custom_model_config": {
-                "aux_weight": aux_teammate_weight,
-                "aux_hidden_size": aux_teammate_hidden,
-                "aux_label_scale": aux_teammate_label_scale,
-            },
+            "custom_model_config": (
+                {
+                    "teacher_ensemble_checkpoints": per_agent_distill_teacher_paths,
+                    "teacher_weights": per_agent_distill_teacher_weights,
+                    "distill_alpha_init": per_agent_distill_alpha_init,
+                    "distill_alpha_final": per_agent_distill_alpha_final,
+                    "distill_decay_updates": per_agent_distill_decay_updates,
+                    "distill_temperature": per_agent_distill_temperature,
+                }
+                if per_agent_distill_enabled
+                else {
+                    "aux_weight": aux_teammate_weight,
+                    "aux_hidden_size": aux_teammate_hidden,
+                    "aux_label_scale": aux_teammate_label_scale,
+                }
+            ),
         },
         "rollout_fragment_length": rollout_fragment_length,
         "batch_mode": os.environ.get("BATCH_MODE", "truncate_episodes"),
