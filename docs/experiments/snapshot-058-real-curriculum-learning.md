@@ -135,7 +135,79 @@ CURRICULUM_PHASES="0,200,random;200,500,baseline_0.3;500,1000,baseline_0.7;1000,
 
 ## 7. Verdict
 
-_Pending_
+### 7.1 2026-04-20 13:55 EDT — Stage 1 baseline 1000ep verdict — **FAIL §3.1 marginal threshold, Outcome C (curriculum path closes)**
+
+**Append-only**。
+
+训练数据：058 Curriculum Stage 1 baseline 1000ep，11 ckpts (pick_top +11 因 §3.3 training 是 short-range variable window)。
+
+**Stage 1 1000ep 结果表**:
+
+| ckpt | 1000ep | W-L |
+|---:|---:|---:|
+| 850 | 0.813 | 813-187 |
+| 860 | 0.812 | 812-188 |
+| 930 | 0.824 | 824-176 |
+| 940 | 0.837 | 837-163 |
+| **950** | **0.847** | 847-153 |
+| 1150 | 0.845 | 845-155 |
+| 1160 | 0.818 | 818-182 |
+| 1170 | 0.827 | 827-173 |
+| 1220 | 0.845 | 845-155 |
+| 1230 | 0.825 | 825-175 |
+| 1240 | 0.833 | 833-167 |
+
+**Peak = 0.847 @ iter 950** (847W-153L, n=1000, SE ±0.011). Plateau mean 约 0.83, ±SE 0.010。
+
+**Raw recap** (`evaluate_official_suite.py` parallel run，total_elapsed=577.3s, 7-way parallel):
+
+```
+=== Official Suite Recap (parallel) ===
+058_curriculum_scratch_v2_512x512_20260420_092046/.../checkpoint-850 vs baseline: 0.813 (813W-187L-0T)
+058_curriculum_scratch_v2_512x512_20260420_092046/.../checkpoint-860 vs baseline: 0.812 (812W-188L-0T)
+058_curriculum_scratch_v2_512x512_20260420_092046/.../checkpoint-930 vs baseline: 0.824 (824W-176L-0T)
+058_curriculum_scratch_v2_512x512_20260420_092046/.../checkpoint-940 vs baseline: 0.837 (837W-163L-0T)
+058_curriculum_scratch_v2_512x512_20260420_092046/.../checkpoint-950 vs baseline: 0.847 (847W-153L-0T)
+058_curriculum_scratch_v2_512x512_20260420_092046/.../checkpoint-1150 vs baseline: 0.845 (845W-155L-0T)
+058_curriculum_scratch_v2_512x512_20260420_092046/.../checkpoint-1160 vs baseline: 0.818 (818W-182L-0T)
+058_curriculum_scratch_v2_512x512_20260420_092046/.../checkpoint-1170 vs baseline: 0.827 (827W-173L-0T)
+058_curriculum_scratch_v2_512x512_20260420_092046/.../checkpoint-1220 vs baseline: 0.845 (845W-155L-0T)
+058_curriculum_scratch_v2_512x512_20260420_092046/.../checkpoint-1230 vs baseline: 0.825 (825W-175L-0T)
+058_curriculum_scratch_v2_512x512_20260420_092046/.../checkpoint-1240 vs baseline: 0.833 (833W-167L-0T)
+[suite-parallel] total_elapsed=577.3s tasks=11 parallel=7
+```
+
+**对预注册判据评估**:
+
+| §3.N 判据 | 阈值 | 实测 | verdict |
+|---|---|---|---|
+| §3.1 marginal | peak ≥ 0.886 | 0.847 | **FAIL** |
+| §3.2 主 | peak ≥ 0.890 | 0.847 | FAIL |
+| §3.3 突破 | peak ≥ 0.900 | 0.847 | FAIL |
+| §3.4 持平 | peak ∈ [0.875, 0.886) | 0.847 | miss (below) |
+| §3.5 退化 | peak < 0.870 | 0.847 | **命中退化区** |
+
+**结论**:
+- Peak 1000ep = 0.847 @ iter 950 — 明确低于 031B SOTA 0.882, **Δ = -0.035 (-3.5pp), 约 2.2× SE 下方**
+- 命中 §3.5 "退化" 区 (peak < 0.870), 也同时 fail §3.1 marginal threshold (≥ 0.886)
+- 强化 "curriculum reverse-harm" 读法: warmup 阶段 student 对着 random opponent 学到的 prior 跟 baseline opponent 的 real policy 不对齐, 后期 transfer 效率 < 纯 scratch vs baseline
+- **50ep 内部 eval 0.92 是 overly optimistic** — curriculum training 产生的 50ep WR 信号 (对着 mixed-difficulty opponent 测) 不 translate 到 1000ep baseline skill
+- 距离 055 distill (combined 0.907) = **-6.0pp**, 距离 031B 单模 baseline = **-3.5pp**
+- **Curriculum learning path (random → weak → mixed → baseline) 对 2v2 soccer 这个 seed = SUB-SOTA**, 在任何公平比较下都没有优势
+
+**§4.5 retrograde sequence 初判** (2026-04-20 13:55): §3.5 退化阈值命中,但 **user 2026-04-20 14:xx review revision**: 不关闭 curriculum 路径。理由:
+- 50ep (0.92) 与 1000ep (0.847) gap = **0.073pp** — 异常大,平均 lane 只有 0.02-0.03。说明 058 训练内部方差大,可能真实 peak 未被 1000ep draw 抓到
+- 未做 H2H vs frontier → 可能有 niche strength (尤其对强对手,非 baseline)
+- 未 re-eval 另一 port → 可能受 Unity port-determinism 影响
+- Curriculum 路径未与 LR=3e-4 / distill 结合测试
+
+**修订决定**: 058 进入 **Stage 2 follow-up 探索**:
+- 058b H2H 500ep vs {031B@1220, 055@1150, 029B@190} — 测 niche strength
+- 058d re-eval 1000ep @ 不同 port — 排除 seed unlucky
+- 根据 58b/58d 结果决定:
+  - 若 H2H 有意外胜场 (vs frontier → 058 > 0.50): 走 **Outcome A** 路径 (adaptive curriculum / frontier pool opponent)
+  - 若 re-eval 回 0.87+: 说明之前 1000ep 是 unlucky draw, 走 **058a extend with LR=3e-4**
+  - 两者都无信号: 确认 Outcome C, 但保留 058 作为 ensemble candidate 不 prune
 
 ## 8. 后续路径
 
@@ -161,3 +233,89 @@ _Pending_
 ### 代码
 - [train_ray_curriculum.py](../../cs8803drl/training/train_ray_curriculum.py) — 现有 curriculum 入口
 - [curriculum.yaml](../../curriculum.yaml) — 现有 yaml 配置
+
+---
+
+## 7.2 Re-eval 1000ep (2026-04-20 15:20 EDT, port 48005, append-only)
+
+user 2026-04-20 14:xx review 不关闭 curriculum 路径, 对 Stage 1 的 3 个候选 ckpt (940 / 950 / 1150) 在**不同 port (48005, 跟 Stage 1 port 49005 不同 seed)** 重跑 1000ep 并 combine 为 2000ep:
+
+| ckpt | Stage 1 1000ep (port 49005) | Re-eval 1000ep (port 48005) | Combined 2000ep | ±SE |
+|---:|---:|---:|---:|---:|
+| 940 | 0.837 | 0.829 | 1666/2000 = 0.833 | ±0.008 |
+| 950 | 0.847 (prior peak) | 0.826 | 1673/2000 = 0.837 | ±0.008 |
+| 1150 | 0.845 | 0.839 | **1684/2000 = 0.842** | ±0.008 |
+
+Raw recap:
+```
+=== Official Suite Recap (parallel) ===
+/storage/ice1/5/1/wsun377/ray_results_scratch/058_curriculum_scratch_v2_512x512_20260420_092046/TeamVsBaselineShapingPPOTrainer_Soccer_cb48b_00000_0_2026-04-20_09-21-09/checkpoint_000940/checkpoint-940 vs baseline: win_rate=0.829 (829W-171L-0T)
+/storage/ice1/5/1/wsun377/ray_results_scratch/058_curriculum_scratch_v2_512x512_20260420_092046/TeamVsBaselineShapingPPOTrainer_Soccer_cb48b_00000_0_2026-04-20_09-21-09/checkpoint_000950/checkpoint-950 vs baseline: win_rate=0.826 (826W-174L-0T)
+/storage/ice1/5/1/wsun377/ray_results_scratch/058_curriculum_scratch_v2_512x512_20260420_092046/TeamVsBaselineShapingPPOTrainer_Soccer_cb48b_00000_0_2026-04-20_09-21-09/checkpoint_001150/checkpoint-1150 vs baseline: win_rate=0.839 (839W-161L-0T)
+[suite-parallel] total_elapsed=285.0s tasks=3 parallel=3
+```
+
+**关键发现**: Stage 1 的 peak (0.847 @ 950) 是 **positive fluctuation** — combined 2000ep 下真 peak shift 到 **iter 1150 = 0.842** (不是 950)。
+
+- §7.1 记录的 "50ep (0.92) 与 1000ep (0.847) gap = 0.073pp" 的 **unlucky sample 假设被部分反驳**: re-eval 下 950 掉到 0.826, 1150 稳到 0.839, combined true peak 0.842 (1150) 不是 0.837 (950)。Stage 1 把 ckpt 950 偶然抬到 0.847, 被 re-eval 拉回来。
+- 但 gap 本质 (internal eval 0.92 vs official 1000ep 0.842) 仍存在 — 不是 1000ep unlucky, 而是 **058 curriculum training 真实内部方差 large**, peak ckpt identity 在不同 sample 之间会 shift (940/950/1150 在不同 port 下各有擡升/跌落)。
+
+---
+
+## 7.3 H2H 3-way (2026-04-20 15:15-15:20 EDT, n=500 each, append-only)
+
+测试 §7.1 verdict revision 中"niche strength hypothesis" — 058 curriculum 对 frontier / peer 是否有 peer-axis 优势 (即使 baseline 轴 sub-SOTA)。
+
+| matchup | 058 wins | opp wins | 058 rate | z | p | sig |
+|---|---:|---:|---:|---:|---:|:---:|
+| 058@950 vs 031B@1220 | 187 | 313 | **0.374** | -5.64 | <0.001 | `***` (LOSE) |
+| 058@950 vs 055@1150 | 144 | 356 | **0.288** | -9.48 | <0.001 | `***` (LOSE) |
+| 058@950 vs 029B@190 | 239 | 261 | **0.478** | -0.98 | 0.16 | — (TIE) |
+
+Raw recaps:
+```
+---- H2H Recap (058 vs 031B) ----
+team0_module: cs8803drl.deployment.trained_team_ray_agent
+team1_module: cs8803drl.deployment.trained_team_ray_opponent_agent
+episodes: 500
+team0_overall_record: 187W-313L-0T
+team0_overall_win_rate: 0.374
+team0_edge_vs_even: -0.126
+```
+```
+---- H2H Recap (058 vs 055) ----
+team0_overall_record: 144W-356L-0T
+team0_overall_win_rate: 0.288
+team0_edge_vs_even: -0.212
+```
+```
+---- H2H Recap (058 vs 029B) ----
+team0_module: cs8803drl.deployment.trained_team_ray_agent
+team1_module: cs8803drl.deployment.trained_shared_cc_opponent_agent
+episodes: 500
+team0_overall_record: 239W-261L-0T
+team0_overall_win_rate: 0.478
+team0_edge_vs_even: -0.022
+```
+
+**H2H 读法**:
+- **LOSE `***` vs 031B (frontier team-level SOTA)** — 058 curriculum 对 team-level strongest single-model 给出 -12.6pp 决定性劣势。
+- **LOSE `***` vs 055 (project SOTA distill)** — 对 project SOTA 给出 -21.2pp 更大劣势, 完全无 niche strength。
+- **TIE vs 029B (per-agent SOTA, cross-architecture)** — 唯一未显著的 matchup; 跨架构下 058 稳住 0.478 (NS), 但仍 <0.5 方向性劣势。
+
+---
+
+## 7.4 Final verdict (2026-04-20 15:20 EDT, 058 simplified curriculum, append-only)
+
+综合 §7.1 + §7.2 + §7.3, **058 simplified curriculum (4-phase fixed schedule random → 0.3 baseline → 0.7 baseline → 1.0 baseline)**:
+
+1. **Combined 2000ep peak = 0.842 @ iter 1150** (supersedes §7.1 single-shot 0.847 @ 950 — Stage 1 是 positive fluctuation; true peak 在 re-eval 下 shift 到 1150)。
+2. **vs 031B (0.880): Δ = -0.038 (≈3.5× SE)** — sub-SOTA **statistically significant** (1.96σ 外)。
+3. **vs 031B-noshape (0.875): Δ = -0.033** — 即使拿掉 v2 作 fair anchor, 仍 sub-SOTA。
+4. **H2H portfolio** (§7.3):
+   - LOSE `***` vs 031B (frontier team-level SOTA, -12.6pp)
+   - LOSE `***` vs 055 (project SOTA, -21.2pp)
+   - TIE vs 029B (per-agent SOTA, cross-architecture, -2.2pp NS)
+5. **Niche strength hypothesis**: **PARTIALLY validated** — 058 对 cross-arch per-agent (029B) 打成 tie, 但**不**对任何 frontier team-level 产生正号。无 actionable upside。
+6. **50ep/1000ep gap 的真解释**: 058 curriculum 训练**内部方差大** (re-eval 下 peak identity 从 950 shift 到 1150 确认), 不是 Stage 1 1000ep unlucky sample。
+7. **Directive**: 058 **simplified path CONFIRMED sub-SOTA**。但 **DO NOT close curriculum path overall** — 062a/b/c (adaptive gate + boundary sweep + no-shape) 正在测 upgraded 版本。Final curriculum verdict pending 062 results。058 保留作为 curriculum family baseline reference, 不进 ensemble / submission。

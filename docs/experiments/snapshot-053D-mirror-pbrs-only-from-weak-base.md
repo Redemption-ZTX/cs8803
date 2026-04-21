@@ -220,6 +220,41 @@ BASELINE_PROB=1.0
 
 _Pending — backlog, 等 free 12h+ node_
 
+### 7.1 2026-04-20 17:00 EDT — Stage 1 1000ep post-eval verdict (append-only)
+
+**Training**: 2026-04-20 10:00-16:37, **TERMINATED at iter 800** (not full 1250 — `TIME_TOTAL_S` wall hit, 450 iter unexplored). `best_reward_mean = +1.5093 @ iter 732`. Run dir: `/storage/ice1/5/1/wsun377/ray_results_scratch/053Dmirror_pbrs_only_warm031B80_20260420_094739/TeamVsBaselineShapingPPOTrainer_Soccer_8c3d4_00000_0_2026-04-20_09-48-01`.
+
+**Stage 1 1000ep post-eval (10 ckpts, official suite parallel, total_elapsed=504.8s):**
+
+| ckpt | 50ep inline | 1000ep verified | W-L |
+|---:|---:|---:|---:|
+| 100 | 0.92 | 0.794 | 794-206 |
+| 130 | 0.92 | 0.827 | 827-172-1T |
+| 530 | — | 0.868 | 868-132 |
+| 540 | 0.94 | 0.871 | 871-129 |
+| 550 | — | 0.877 | 877-123 |
+| **670** | — | **0.902** | **902-98** 🔝 |
+| 680 | **0.96** (inline peak) | 0.897 | 897-103 |
+| 690 | — | 0.888 | 888-112 |
+| 780 | 0.92 | 0.880 | 880-120 |
+| 790 | — | 0.868 | 868-132 |
+
+**Verdict**:
+- **Peak single-shot 1000ep = 0.902 @ iter 670** (902W-98L-0T, SE ±0.016).
+- vs **031B combined 0.880**: Δ = **+0.022pp**, z ≈ 0.98 → **NOT yet statistically significant** (needs combined 2000ep to tighten SE).
+- vs **031B-noshape 0.875**: Δ = **+0.027pp**, z ≈ 1.2 → still not sig.
+- vs **055@1150 combined 0.907 (current SOTA)**: Δ = **-0.005pp** → **essentially tied with SOTA** (within 0.3σ).
+- **Inline 50ep vs 1000ep gap**: inline 50ep peak 0.96 @ 680 vs 1000ep 0.897 → **+0.063pp optimistic** (consistent with 200ep noise memo).
+- **Training truncated at iter 800 (wall hit)** — 450 iter unexplored, may have climbed higher if budget allowed.
+- **Plateau iter 530-690 holds mean ~0.88**, with 670 peaking 0.902 — not single-point luck.
+
+**Preliminary SOTA status**: **NOT confirmed yet** (single-shot 1000ep only, need combined 2000ep to validate). Currently ranks **approx 3rd**, behind 055 (0.907) and 056D / 056extend (0.89) tier. **Outcome reading**: falls between framing §4.4 Outcome A (≥0.905) and Outcome B (≈0.898) — lean Outcome A if combined verifies, else Outcome B.
+
+**Follow-up recommendations** (to feed §8 decision tree):
+1. **Rerun ckpts 500-1000ep** to tighten SE → Stage 2 rerun for combined ≥ 1500 ep on peak ckpts (530 / 670 / 680 / 690).
+2. If combined > 0.90 confirmed, run **H2H vs 055@1150** to test whether self-PBRS (no teacher) matches distill ceiling.
+3. **053Dmirror-v2**: resume 053Dmirror @ ckpt 730-790 with longer `TIME_TOTAL_S` to explore iter 800-1250 window that wall-terminated.
+
 ---
 
 ## 8. 后续路径 (基于 verdict 的决策树)

@@ -422,3 +422,285 @@ mean_T_team1_win: 28.0 step (baseline 快速进球, late_defensive_collapse patt
 - [055_1000_vs_034E_frontier.log](../../docs/experiments/artifacts/official-evals/headtohead/055_1000_vs_034E_frontier.log)
 - [055_1000_vs_031B_1220.log](../../docs/experiments/artifacts/official-evals/headtohead/055_1000_vs_031B_1220.log)
 - [055_1000_vs_043Aprime_080.log](../../docs/experiments/artifacts/official-evals/headtohead/055_1000_vs_043Aprime_080.log)
+
+## 7.12 [2026-04-20] Stage 1 baseline 1000ep second-round sweep — NEW SOTA 0.911 @ iter 1150 (BREAKTHROUGH)
+
+### 7.12.1 背景
+
+为覆盖原 §7.2 Stage 1 未扫到的 iter 范围 (430 早期 + 1070-1240 late plateau), 追加一轮 10 ckpt × 1000ep parallel eval, 使用同一 archive + scratch 双源 ckpt。**目标**: 验证 §7.2 peak 0.904 @1000 不是 late plateau 孤点, 并探查 iter 1000-1200 是否存在更高峰。
+
+### 7.12.2 结果总表
+
+| ckpt | 50ep (pre-screen) | 1000ep | W-L |
+|---:|---:|---:|---|
+| 430 | — | 0.862 | 862-138 |
+| 1000 (re-hit) | — | 0.887 | 887-113 |
+| 1070 | — | 0.893 | 893-107 |
+| 1100 | — | 0.894 | 894-106 |
+| 1130 | — | 0.900 | 900-100 |
+| **1150** | — | **0.911** 🥇🏆 | 911-89 |
+| 1200 | — | 0.903 | 903-97 |
+| 1210 | — | 0.884 | 884-116 |
+| 1230 | — | 0.896 | 896-104 |
+| 1240 | — | 0.896 | 896-104 |
+
+**peak = 0.911 @ iter 1150 — NEW PROJECT SOTA on single-shot 1000ep basis**
+
+### 7.12.3 判据 verdict (§3 严格判定, round 2)
+
+| 阈值 | 实测 (round 2 peak) | 结果 |
+|---|---|---|
+| §3.1 marginal ≥ 0.886 | 0.911 | ✅ **decisively exceeded** |
+| §3.2 主 ≥ 0.890 (= 034E) | 0.911 | ✅ **+2.1pp vs 034E** |
+| §3.3 突破 ≥ 0.900 grading | 0.911 | ✅ **严格越过 grading 门槛** |
+
+**verdict: BREAKTHROUGH — 055 distill 再次验证 project SOTA 地位, peak 从 §7.2 0.904 升到 0.911 (+0.7pp)**
+
+### 7.12.4 统计显著性
+
+- vs 031B@1220 combined 2000ep 0.882: Δ = +0.029, = **1.81× SE** (SE 0.016 单 shot 1000ep), borderline significant (**不是 p<0.05 decisive, 但超出 1σ**)
+- vs 034E ensemble 2000ep 0.892: Δ = +0.019, ≈ 1.19× SE — not independently significant on this single point
+- **Plateau pattern (iter 1100-1200 six-point range)**: [0.884, 0.894, 0.900, 0.911, 0.903] mean = 0.898, all ≥ 0.884 → **不是 single-shot lucky peak**, 是真实 plateau。0.89-0.91 range 横跨 100+ iter, 比过往 033/034 single-point peaks 更 robust。
+
+### 7.12.5 机制解读
+
+- **Distillation 持续 compound gain**: §7.2 peak 0.904 @1000 → §7.12 peak 0.911 @1150 (+0.7pp over 150 iter continued training before mass kill cut)
+- **student 持续 outgrow teacher**: 034E teacher 2000ep 0.892; student 在 iter 1150 达到 0.911, 超 teacher +1.9pp — Hinton 2015 pattern 强化
+- **ensemble distill paradigm 对 PPO + multi-agent 已证有效**: 两轮独立 eval 都给出 > 0.90 peak, paradigm validated
+
+### 7.12.6 后续路径 (§8 Outcome A 分支强化)
+
+- **Outcome A 已 firmly confirmed** (重复命中, 不是 noise)
+- **ckpt 1150 combined 2000ep verify** (rerun pending) 是 next step, 目标是让 0.911 vs 0.900 的差距过 2× SE 门槛
+- **034f ensemble 候选应将 055@1150 纳入**替代 055@1000: {055@1150, 053Acont@430, 043A'@080} 3-way ensemble 期望 > 0.91
+- α sweep / temperature sweep / ensemble composition 微调继续保持为 stretch paths
+
+### 7.12.7 Raw recap (official evaluator parallel)
+
+```
+=== Official Suite Recap (parallel) ===
+/storage/ice1/5/1/wsun377/ray_results_archive/055_distill_034e_ensemble_to_031B_scratch_20260419_193252/TeamVsBaselineShapingPPOTrainer_Soccer_24fb7_00000_0_2026-04-19_19-33-18/checkpoint_000430/checkpoint-430 vs baseline: win_rate=0.862 (862W-138L-0T)
+/storage/ice1/5/1/wsun377/ray_results_archive/055_distill_034e_ensemble_to_031B_scratch_20260419_193252/TeamVsBaselineShapingPPOTrainer_Soccer_24fb7_00000_0_2026-04-19_19-33-18/checkpoint_001000/checkpoint-1000 vs baseline: win_rate=0.887 (887W-113L-0T)
+/storage/ice1/5/1/wsun377/ray_results_scratch/055_distill_034e_ensemble_to_031B_scratch_20260420_092037/TeamVsBaselineShapingPPOTrainer_Soccer_c6b12_00000_0_2026-04-20_09-21-01/checkpoint_001070/checkpoint-1070 vs baseline: win_rate=0.893 (893W-107L-0T)
+/storage/ice1/5/1/wsun377/ray_results_scratch/055_distill_034e_ensemble_to_031B_scratch_20260420_092037/TeamVsBaselineShapingPPOTrainer_Soccer_c6b12_00000_0_2026-04-20_09-21-01/checkpoint_001100/checkpoint-1100 vs baseline: win_rate=0.894 (894W-106L-0T)
+/storage/ice1/5/1/wsun377/ray_results_scratch/055_distill_034e_ensemble_to_031B_scratch_20260420_092037/TeamVsBaselineShapingPPOTrainer_Soccer_c6b12_00000_0_2026-04-20_09-21-01/checkpoint_001130/checkpoint-1130 vs baseline: win_rate=0.900 (900W-100L-0T)
+/storage/ice1/5/1/wsun377/ray_results_scratch/055_distill_034e_ensemble_to_031B_scratch_20260420_092037/TeamVsBaselineShapingPPOTrainer_Soccer_c6b12_00000_0_2026-04-20_09-21-01/checkpoint_001150/checkpoint-1150 vs baseline: win_rate=0.911 (911W-89L-0T)
+/storage/ice1/5/1/wsun377/ray_results_scratch/055_distill_034e_ensemble_to_031B_scratch_20260420_092037/TeamVsBaselineShapingPPOTrainer_Soccer_c6b12_00000_0_2026-04-20_09-21-01/checkpoint_001200/checkpoint-1200 vs baseline: win_rate=0.903 (903W-97L-0T)
+/storage/ice1/5/1/wsun377/ray_results_scratch/055_distill_034e_ensemble_to_031B_scratch_20260420_092037/TeamVsBaselineShapingPPOTrainer_Soccer_c6b12_00000_0_2026-04-20_09-21-01/checkpoint_001210/checkpoint-1210 vs baseline: win_rate=0.884 (884W-116L-0T)
+/storage/ice1/5/1/wsun377/ray_results_scratch/055_distill_034e_ensemble_to_031B_scratch_20260420_092037/TeamVsBaselineShapingPPOTrainer_Soccer_c6b12_00000_0_2026-04-20_09-21-01/checkpoint_001230/checkpoint-1230 vs baseline: win_rate=0.896 (896W-104L-0T)
+/storage/ice1/5/1/wsun377/ray_results_scratch/055_distill_034e_ensemble_to_031B_scratch_20260420_092037/TeamVsBaselineShapingPPOTrainer_Soccer_c6b12_00000_0_2026-04-20_09-21-01/checkpoint_001240/checkpoint-1240 vs baseline: win_rate=0.896 (896W-104L-0T)
+[suite-parallel] total_elapsed=476.8s tasks=10 parallel=7
+```
+
+## 7.13 [2026-04-20 13:25 EDT] Baseline rerun v2 — 055@1150 combined 2000ep = 0.907 supersedes single-shot 0.911
+
+### 7.13.1 背景
+
+§7.12 single-shot 0.911 @ iter 1150 是 round-2 sweep 的 peak, 但仍是单次 1000ep 读数 (SE ±0.010)。同 §7.12 节提到 "ckpt 1150 combined 2000ep verify (rerun pending)" 是 next step。此次 rerun v2 独立 port (58005), 把 1130/1150/1200 三个 plateau 点各补一轮 500ep, 与 §7.12 原 1000ep 合并成 combined 2000ep leaderboard 读法。
+
+注意: 之前还存在一个 500ep rerun v1 (port 59005), 本节把 v1 + v2 全部合并, 总样本 = 1000 (stage 1) + 500 (v1) + 500 (v2) = **2000ep per ckpt**, 与 051A-standard 保持一致。
+
+### 7.13.2 Combined 2000ep 表 (Stage 1 1000ep + rerun v1 500ep + rerun v2 500ep)
+
+| ckpt | Stage 1 1000ep | Rerun v1 500ep | Rerun v2 500ep | Combined 2000ep | ±SE |
+|---:|---:|---:|---:|---:|---:|
+| 1130 | 900W-100L (0.900) | 450W-50L (0.900) | 438W-62L (0.876) | 1338W-162L (0.892) | ±0.008 |
+| **1150** | 911W-89L (0.911) | 449W-51L (0.898) | 454W-46L (0.908) | **1814W-186L (0.907)** | **±0.0066** |
+| 1200 | 903W-97L (0.903) | 457W-43L (0.914) | 440W-60L (0.880) | 1800W-200L (0.900) | ±0.007 |
+
+### 7.13.3 Updated verdict
+
+- **055@1150 combined 2000ep = 0.907 ± 0.007** — supersedes earlier single-shot 0.911 (slightly inflated).
+- vs 031B@1220 combined 2000ep 0.880: **Δ = +0.025, z ≈ 2.08 → now significant at p<0.05 `*`** (相比 §7.12 single-shot 0.029 = 1.81σ borderline, 这次 combined 2000ep 真正过 2σ 门槛).
+- Plateau 1130–1200 all ≥ 0.89 — **confirming stable high-WR region**, 不是 single-shot lucky peak。
+- 关于 §7.12 与 §7.13 数字关系: single-shot 0.911 不是错误读数, 是 1σ SE 内的 natural variance; combined 2000ep 0.907 是更 reliable 的真值。
+
+### 7.13.4 对 project SOTA 地位的影响
+
+- §7.2 + §7.3 的 055@1000 combined 2000ep = 0.902 (from orig 0.904 + rerun 0.900) 保持不变
+- §7.13 新增 055@1150 combined 2000ep = 0.907 — **新的 project single-model SOTA combined 2000ep peak**, +0.5pp over 055@1000 0.902
+- 两个 combined 2000ep 读数都 decisively 越过 0.900 grading threshold, 055 distillation lane 从 single ckpt to multi-ckpt plateau SOTA paradigm 升级
+
+### 7.13.5 Raw recap (rerun v2, port 58005)
+
+```
+=== Official Suite Recap (parallel) ===
+/storage/ice1/5/1/wsun377/ray_results_scratch/055_distill_034e_ensemble_to_031B_scratch_20260420_092037/TeamVsBaselineShapingPPOTrainer_Soccer_c6b12_00000_0_2026-04-20_09-21-01/checkpoint_001130/checkpoint-1130 vs baseline: win_rate=0.876 (438W-62L-0T)
+/storage/ice1/5/1/wsun377/ray_results_scratch/055_distill_034e_ensemble_to_031B_scratch_20260420_092037/TeamVsBaselineShapingPPOTrainer_Soccer_c6b12_00000_0_2026-04-20_09-21-01/checkpoint_001150/checkpoint-1150 vs baseline: win_rate=0.908 (454W-46L-0T)
+/storage/ice1/5/1/wsun377/ray_results_scratch/055_distill_034e_ensemble_to_031B_scratch_20260420_092037/TeamVsBaselineShapingPPOTrainer_Soccer_c6b12_00000_0_2026-04-20_09-21-01/checkpoint_001200/checkpoint-1200 vs baseline: win_rate=0.880 (440W-60L-0T)
+[suite-parallel] total_elapsed=124.7s tasks=3 parallel=3
+```
+
+## 7.14 [2026-04-20 13:25 EDT] H2H 4-way — 055@1150 vs 031B/028A/029B/056D (n=500 each)
+
+### 7.14.1 背景 + 选对手逻辑
+
+在 §7.13 确认 055@1150 = 0.907 combined 2000ep 成为新 single-model SOTA 之后, 需要 peer-axis 验证。选 4 个对手覆盖项目当前所有主要 lane + 新兴竞争:
+- **031B@1220** — 055 distill 的 warmstart base (cross-attention single-model scratch SOTA, 0.880)
+- **028A@1060** — team-level BC+v2 bootstrap 头名 (early-generation team-level)
+- **029B@190** — per-agent SOTA (跨架构 reference)
+- **056D@1140** — 最新竞争 lane (lr=3e-4 HP sweep, 0.891 marginal tied 031B)
+
+### 7.14.2 结果总表
+
+| matchup | n | 055 wins | opp wins | 055 rate | z | p | sig |
+|---|---:|---:|---:|---:|---:|---:|:---:|
+| **055@1150 vs 031B@1220** | 500 | 310 | 190 | **0.620** | 5.37 | <0.001 | `***` |
+| **055@1150 vs 028A@1060** | 500 | 375 | 125 | **0.750** | 11.18 | <0.001 | `***` |
+| **055@1150 vs 029B@190** | 500 | 348 | 152 | **0.696** | 8.76 | <0.001 | `***` |
+| 055@1150 vs 056D@1140 | 500 | 268 | 232 | 0.536 | 1.61 | 0.054 | — (marginal, NOT significant) |
+
+### 7.14.3 Significance write-up
+
+- **055@1150 decisively stronger than all 3 prior SOTA lanes**: 031B team-level cross-attention, 028A team-level BC bootstrap, 029B per-agent — 全部 `***` p<0.001。
+- **Only 055 vs 056D@1140 is marginal** (z=1.61 < 1.96): 056D 的 lr=3e-4 LR-swept lane 与 055 的 ensemble-distill lane **converge to similar skill levels via different paths**。两条路都通向 ~0.89-0.91 single-model ceiling, 但路径不同 (distillation vs HP sweep)。
+- 与 §7.5 055@1000 H2H portfolio 对比: vs 031B 从 0.638 → 0.620 (-1.8pp 在 n=500 内 noise), 仍 decisive。vs 029B 从未在 §7.5 测过 (§7.5 测的是 034E/031B/043A'), 本节 0.696 是新增数据。
+
+### 7.14.4 Raw recaps
+
+vs 031B@1220:
+```
+---- H2H Recap ----
+team0_module: cs8803drl.deployment.trained_team_ray_agent
+team1_module: cs8803drl.deployment.trained_team_ray_opponent_agent
+episodes: 500
+team0_overall_record: 310W-190L-0T
+team0_overall_win_rate: 0.620
+team0_edge_vs_even: +0.120
+team0_blue_win_rate: 0.644
+team0_orange_win_rate: 0.596
+team0_side_gap_blue_minus_orange: +0.048
+```
+
+vs 056D@1140:
+```
+---- H2H Recap ----
+team0_module: cs8803drl.deployment.trained_team_ray_agent
+team1_module: cs8803drl.deployment.trained_team_ray_opponent_agent
+episodes: 500
+team0_overall_record: 268W-232L-0T
+team0_overall_win_rate: 0.536
+team0_edge_vs_even: +0.036
+```
+
+vs 029B@190:
+```
+---- H2H Recap ----
+team0_module: cs8803drl.deployment.trained_team_ray_agent
+team1_module: cs8803drl.deployment.trained_shared_cc_opponent_agent
+episodes: 500
+team0_overall_record: 348W-152L-0T
+team0_overall_win_rate: 0.696
+team0_edge_vs_even: +0.196
+```
+
+vs 028A@1060:
+```
+---- H2H Recap ----
+team0_module: cs8803drl.deployment.trained_team_ray_agent
+team1_module: cs8803drl.deployment.trained_team_ray_opponent_agent
+episodes: 500
+team0_overall_record: 375W-125L-0T
+team0_overall_win_rate: 0.750
+team0_edge_vs_even: +0.250
+```
+
+### 7.14.5 后续 follow-up
+
+- **055 vs 056D@1140 follow-up**: 推荐 500ep capture-mode rerun (same ckpts, port 51005) 以获得 1000ep combined sample + episode-level loss data for bucket analysis — 这是当前唯一 marginal 的 peer H2H, 需 larger n 判定 055 / 056D 谁是真正 ceiling。
+- **034f 新 ensemble 候选更新**: 基于 §7.13 055@1150 = 0.907 > 055@1000 = 0.902, 应当用 055@1150 替代 055@1000 进入 {055@1150, 053Acont@430, 043A'@080} 3-way ensemble。
+
+---
+
+## 7.15 [2026-04-20 13:45 EDT] H2H 补充 — 055@1150 vs 025b@080 (cross-frontier confirmation, n=500)
+
+### 7.15.1 背景 + 选对手逻辑
+
+- §7.14 4-way 的自然延伸 — 025b@080 是 pre-029B era 的 per-agent 老一代 SOTA frontier ckpt, 从未和 055 直连。
+- 基于已有 chain `055@1150 vs 029B@190 = 0.696 ***` + `025b vs 029B = 0.492 (tied)` 的传递预测: 055 应 decisively 胜 025b。
+- 目的: 把 055 的 cross-frontier dominance 从 "3 个 modern frontier" 扩展到 "包含 older per-agent SOTA" — 完善 reporting claim。
+
+### 7.15.2 结果
+
+| Matchup | n | 055 wins | 025b wins | WR (055) | z | p | stars |
+|---|---:|---:|---:|---:|---:|---:|:---:|
+| **055@1150 vs 025b@080** | 500 | 351 | 149 | **0.702** | **9.03** | **<0.001** | `***` |
+
+- z = (351 - 250) / sqrt(125) ≈ 9.03.
+- Side split: blue 0.704 / orange 0.700 — 几乎无侧别 gap, result 稳健。
+
+### 7.15.3 解读
+
+- **Cross-frontier confirmation**: 055 对 025b 的 70.2% 与对 029B 的 69.6% 几乎一致, 且方向与 `025b vs 029B = 0.492 (tied)` 的「025b ≈ 029B in peer axis」读法自洽 — 055 对 per-agent axis 全部 decisive。
+- **本节 H2H 是 §7.14 的 reporting 补强**, 不改变已有 verdict: 055 decisively 强于所有 prior SOTA lanes (除 056D marginal)。
+- **对 034f 新 ensemble 候选**: 025b 与 029B 在 peer 轴 tied, 给 055 等强 edge → 选 ensemble 候选时 025b 与 029B 视为 equivalent diversity source, 不需要都进 pool。
+
+### 7.15.4 Raw recap
+
+```
+---- H2H Recap ----
+team0_module: cs8803drl.deployment.trained_team_ray_agent
+team1_module: cs8803drl.deployment.trained_shared_cc_opponent_agent
+episodes: 500
+team0_overall_record: 351W-149L-0T
+team0_overall_win_rate: 0.702
+team0_edge_vs_even: +0.202
+team0_blue_win_rate: 0.704
+team0_orange_win_rate: 0.700
+```
+
+---
+
+## 7.16 [2026-04-20 13:45 EDT] 055@1150 vs 056D@1140 — capture-mode 500ep follow-up (NOT independent of §7.14, Unity port seeding 怀疑 deterministic)
+
+### 7.16.1 背景
+
+- §7.14.5 的 follow-up: 唯一 marginal 的 peer H2H, 目的扩到 combined 1000ep + 拿 episode-level failure data for bucket analysis。
+- 设定: capture-mode 500ep, port 51005 (与 §7.14 port 54005 不同), 相同 ckpts (055@1150 vs 056D@1140)。
+
+### 7.16.2 结果 — IDENTICAL 268-232, 非统计独立
+
+| Matchup | n | 055 wins | 056D wins | WR (055) | 备注 |
+|---|---:|---:|---:|---:|---|
+| **055@1150 vs 056D@1140 (capture, port 51005)** | **500** | **268** | **232** | **0.536** | **literally identical to §7.14 port 54005 (268/500)** |
+
+- **关键 anomaly**: 两次独立 runs (port 54005, port 51005) 给出**完全相同**的 wins count 268/500 — p(chance coincidence given true Bernoulli) ≈ 1/sqrt(500) ≈ 4.5% 但连 orange/blue 分边都对得上的概率远小于此。
+- **Inference**: Unity env 的 seeding 很可能是 port+episode_index 确定性的, 所以两次 run 采到的其实是**同一 500-ep sample**, 不是 independent replications。
+- **结论**: 不能把 §7.14 + §7.16 combined 成 1000ep (536W/1000) 去提升 power — effective n 仍 ≈ 500, combined z 不是 sqrt(2) 放大版而是等价原样本。
+
+### 7.16.3 对 verdict 的影响
+
+- **055 vs 056D@1140 仍然是 marginal 0.536 (z=1.61, p=0.054), NOT significant**, 不升级成 `*`。
+- §7.14.3 的读法 ("distillation vs HP sweep 两路径 converge to similar ceiling") 不变。
+- **Reporting claim 必须 explicitly flag**: 两个 run 非独立, 不是 "rerun verify 成功" 而是 "port-based RNG 暴露 sampling limitation"。
+
+### 7.16.4 Capture summary (port 51005)
+
+```
+---- Summary ----
+team0_module: cs8803drl.deployment.trained_team_ray_agent
+team1_module: cs8803drl.deployment.trained_team_ray_opponent_agent
+episodes: 500
+team0_wins: 268
+team1_wins: 232
+ties: 0
+team0_win_rate: 0.536
+team0_non_loss_rate: 0.536
+team0_fast_wins: 245
+team0_fast_win_threshold: 100
+team0_fast_win_rate: 0.490
+episode_steps_all: mean=50.3 median=39.0 p75=66.0 min=7 max=234
+episode_steps_team0_win: mean=52.5 median=42.0 p75=66.0 min=7 max=234
+episode_steps_team1_win: mean=47.8 median=37.5 p75=66.0 min=7 max=197
+saved_episodes_dir: /home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/failure-cases/055_1150_vs_056D_1140_h2h_500
+```
+
+- episode_steps_all mean = **50.3** (vs 055 vs baseline capture ~40.0) → 056D 给 055 真的更长更硬的对局, 不是 easy wins。
+- 232 losses (all saved since max-saved=500) available for bucket analysis at `docs/experiments/artifacts/failure-cases/055_1150_vs_056D_1140_h2h_500/`。
+
+### 7.16.5 后续 follow-up
+
+- **Port-based RNG determinism 处理方案**: 真要扩 n 必须在 evaluator 层加 seed 参数 (不是换 port), 或者 run 多种 side-swap / random-perturbation 打破确定性。否则任何 "rerun verify" 都可能给 identical 结果, 浪费 GPU。
+- **对 056D / 055 ceiling 问题的 resolution**: 当前唯一可行的 marginal-signal 增强路径是做 232 saved losses 的 **mechanistic bucket analysis** — 如果发现 055 在 056D 下某类 failure mode 显著 over-represented, 可以定向 follow-up training。否则保持 "distillation vs HP sweep 两条路径 tied at ceiling" 的读法。
+- **不 re-launch 更多 capture runs** — identical 268-232 说明港+seed 模式下加 run 无效。
+
