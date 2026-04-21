@@ -254,6 +254,11 @@ def _build_frozen_team_siamese_from_checkpoint(checkpoint_path: str, obs_space, 
     logits matching the team-level MultiDiscrete action space.
     """
     weights = extract_torch_weights_from_checkpoint(checkpoint_path, policy_name="default_policy")
+    # Strip embedded teacher_model.* keys from student checkpoints trained via distillation.
+    # Without this, loading a distill-student (e.g., 055@1150, which has nested teachers from
+    # 034E ensemble) as a teacher would raise "Unexpected keys". Strip and keep only the
+    # student's own weights — this IS the distilled student, not its own teachers.
+    weights = {k: v for k, v in weights.items() if not k.startswith("teacher_model.")}
     arch = _detect_team_arch_from_weights(weights)
 
     # Determine num_outputs from logits_layer shape
@@ -338,6 +343,7 @@ class _FrozenTeamEnsembleTeacher(nn.Module):
         action_space,
         joint_action_dims: int,
         factor_classes: int,
+        teacher_weights: "Optional[List[float]]" = None,
     ):
         super().__init__()
         if not checkpoint_paths:
@@ -346,6 +352,28 @@ class _FrozenTeamEnsembleTeacher(nn.Module):
             _build_frozen_team_siamese_from_checkpoint(p, obs_space, action_space)
             for p in checkpoint_paths
         ])
+        # Weights for recency-biased ensemble (snapshot-066 BAN progressive distill).
+        # If None, uniform average = 1/N per teacher. If provided, must sum to 1 and
+        # length must match teacher count.
+        if teacher_weights is None:
+            n = len(self.teachers)
+            teacher_weights = [1.0 / n] * n
+        else:
+            if len(teacher_weights) != len(self.teachers):
+                raise ValueError(
+                    f"teacher_weights length {len(teacher_weights)} must match "
+                    f"teacher count {len(self.teachers)}"
+                )
+            total = sum(teacher_weights)
+            if total <= 0:
+                raise ValueError("teacher_weights must sum to a positive value")
+            teacher_weights = [float(w) / total for w in teacher_weights]  # normalize
+        # Keep teacher weights as plain Python list, NOT a buffer.
+        # Rationale: if registered as buffer (persistent or not), it shows up in state_dict
+        # schemas inconsistently across checkpoint ages (some have the key, some don't),
+        # causing Missing/Unexpected key errors on load_state_dict(strict=True).
+        # By storing as plain attribute, forward recomputes the tensor each call → no state_dict participation.
+        self._teacher_weights_list = list(teacher_weights)
         self._joint_action_dims = int(joint_action_dims)
         self._factor_classes = int(factor_classes)
         for p in self.parameters():
@@ -353,7 +381,7 @@ class _FrozenTeamEnsembleTeacher(nn.Module):
         self.eval()
 
     def forward(self, joint_obs: "torch.Tensor") -> "torch.Tensor":
-        """Returns (B, joint_action_dims, factor_classes) averaged factor probs."""
+        """Returns (B, joint_action_dims, factor_classes) weighted factor probs."""
         input_dict = {"obs_flat": joint_obs, "obs": joint_obs}
         all_factor_probs = []
         for teacher in self.teachers:
@@ -361,8 +389,13 @@ class _FrozenTeamEnsembleTeacher(nn.Module):
             factor_logits = logits.reshape(-1, self._joint_action_dims, self._factor_classes)
             factor_probs = torch.softmax(factor_logits, dim=-1)
             all_factor_probs.append(factor_probs)
-        avg_factor_probs = torch.stack(all_factor_probs, dim=0).mean(dim=0)
-        return avg_factor_probs
+        # Weighted average: (N, B, dims, classes) → (B, dims, classes)
+        stacked = torch.stack(all_factor_probs, dim=0)  # (N, B, dims, classes)
+        weights = torch.tensor(
+            self._teacher_weights_list, dtype=stacked.dtype, device=stacked.device
+        ).view(-1, 1, 1, 1)
+        weighted = stacked * weights  # broadcast
+        return weighted.sum(dim=0)
 
 
 class SiameseTeamEnsembleDistillTorchModel(SiameseCrossAttentionTeamTorchModel):
@@ -377,6 +410,17 @@ class SiameseTeamEnsembleDistillTorchModel(SiameseCrossAttentionTeamTorchModel):
     Used for Tier S1 distillation of 034E (031B + 045A + 051A) ensemble.
     """
 
+    def load_state_dict(self, state_dict, strict=True):
+        """Filter out `teacher_model._teacher_weights` key for cross-version compat.
+
+        Some checkpoints were saved while `_FrozenTeamEnsembleTeacher` had a persistent
+        `_teacher_weights` buffer (window 2026-04-20 17:30 → 2026-04-21 03:00). Current
+        code has no such buffer. Filter the key so old and new ckpts both load cleanly.
+        """
+        filtered = {k: v for k, v in state_dict.items()
+                    if not k.endswith("_teacher_weights")}
+        return super().load_state_dict(filtered, strict=strict)
+
     def __init__(self, obs_space, action_space, num_outputs, model_config, name):
         super().__init__(obs_space, action_space, num_outputs, model_config, name)
 
@@ -388,11 +432,26 @@ class SiameseTeamEnsembleDistillTorchModel(SiameseCrossAttentionTeamTorchModel):
                 "custom_model_config.teacher_ensemble_checkpoints (comma-separated)."
             )
         ensemble_paths = [p.strip() for p in ensemble_paths_str.split(",") if p.strip()]
-        if len(ensemble_paths) < 2:
+        if len(ensemble_paths) < 1:
             raise ValueError(
-                f"Ensemble distillation requires >= 2 teacher checkpoints, "
-                f"got {len(ensemble_paths)}."
+                f"Ensemble distillation requires >= 1 teacher checkpoint, got none."
             )
+        # Optional: teacher_weights (snapshot-066 weighted ensemble for BAN)
+        teacher_weights_str = (custom_cfg.get("teacher_weights") or "").strip()
+        if teacher_weights_str:
+            try:
+                teacher_weights = [float(w.strip()) for w in teacher_weights_str.split(",")]
+            except ValueError as e:
+                raise ValueError(
+                    f"Malformed teacher_weights '{teacher_weights_str}' (expect comma-separated floats): {e}"
+                )
+            if len(teacher_weights) != len(ensemble_paths):
+                raise ValueError(
+                    f"teacher_weights length {len(teacher_weights)} must match "
+                    f"teacher count {len(ensemble_paths)}"
+                )
+        else:
+            teacher_weights = None  # uniform
 
         joint_action_dims, _, factor_classes = _parse_action_spec(action_space)
         self._joint_action_dims = joint_action_dims
@@ -401,6 +460,7 @@ class SiameseTeamEnsembleDistillTorchModel(SiameseCrossAttentionTeamTorchModel):
         self.teacher_model = _FrozenTeamEnsembleTeacher(
             ensemble_paths, obs_space, action_space,
             joint_action_dims=joint_action_dims, factor_classes=factor_classes,
+            teacher_weights=teacher_weights,
         )
 
         self._distill_alpha_init = float(custom_cfg.get("distill_alpha_init", 0.05))

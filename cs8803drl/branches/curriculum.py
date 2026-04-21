@@ -86,6 +86,91 @@ class CurriculumPhaseScheduler:
         }
 
 
+class AdaptiveCurriculumPhaseScheduler(CurriculumPhaseScheduler):
+    """Reward-gated phase transition (SNAPSHOT-062 Tier A4.1).
+
+    Extends CurriculumPhaseScheduler with two new gates:
+      1. `gate_rewards[i]`: minimum episode_reward_mean required to advance
+         from phase i → phase i+1 (len = num_phases - 1).
+      2. `min_phase_iters`: at least N iters must pass between advances
+         (anti-thrash).
+      3. `max_phase_wait`: hard fallback — if train_iter >= next_phase.start_iter
+         + max_phase_wait, force advance even if reward gate fails (anti-stall).
+
+    Semantics: a phase boundary is crossed when ALL of:
+      (a) train_iter >= next_phase.start_iter
+      (b) recent_reward >= gate_rewards[current_phase_idx], OR
+          (a') train_iter >= next_phase.start_iter + max_phase_wait (fallback)
+      (c) train_iter - last_advance_iter >= min_phase_iters
+
+    Use `try_advance(iter, recent_reward)` instead of `baseline_prob_for_iter`.
+    """
+
+    def __init__(
+        self,
+        phases: List[Tuple[int, float]],
+        gate_rewards: List[float],
+        min_phase_iters: int = 50,
+        max_phase_wait: int = 200,
+    ):
+        super().__init__(phases)
+        if len(gate_rewards) != max(0, len(phases) - 1):
+            raise ValueError(
+                f"gate_rewards length {len(gate_rewards)} must equal num_phases-1 "
+                f"({len(phases) - 1}) — one gate per transition"
+            )
+        self._gate_rewards = list(gate_rewards)
+        self._min_phase_iters = int(min_phase_iters)
+        self._max_phase_wait = int(max_phase_wait)
+        self._current_phase_idx = 0
+        self._last_advance_iter = 0
+        self._gate_triggered_fallback = False  # diagnostic: was last advance forced?
+
+    def try_advance(self, train_iter: int, recent_reward: float) -> float:
+        """Returns baseline_prob for the current (possibly updated) phase.
+
+        Called per on_train_result. Phase advances happen in-place if conditions met.
+        """
+        # No next phase → stay at final
+        next_idx = self._current_phase_idx + 1
+        if next_idx >= len(self._phases):
+            return float(self._phases[self._current_phase_idx][1])
+
+        next_phase = self._phases[next_idx]
+        iter_ok = train_iter >= next_phase[0]
+        cooldown_ok = (train_iter - self._last_advance_iter) >= self._min_phase_iters
+        fallback_trigger = train_iter >= (next_phase[0] + self._max_phase_wait)
+        reward_ok = recent_reward >= self._gate_rewards[self._current_phase_idx]
+
+        # Advance if: time condition + cooldown + (reward OR fallback)
+        if iter_ok and cooldown_ok and (reward_ok or fallback_trigger):
+            self._current_phase_idx = next_idx
+            self._last_advance_iter = train_iter
+            self._gate_triggered_fallback = fallback_trigger and not reward_ok
+
+        return float(self._phases[self._current_phase_idx][1])
+
+    @property
+    def current_phase_idx(self) -> int:
+        return self._current_phase_idx
+
+    @property
+    def last_advance_iter(self) -> int:
+        return self._last_advance_iter
+
+    @property
+    def gate_triggered_fallback(self) -> bool:
+        return self._gate_triggered_fallback
+
+
+def parse_gate_rewards(spec: str) -> List[float]:
+    """Parse CURRICULUM_GATE_REWARDS env var like '-0.5,0.0,0.5' → [-0.5, 0.0, 0.5]."""
+    spec = (spec or "").strip()
+    if not spec:
+        return []
+    return [float(x.strip()) for x in spec.split(",") if x.strip()]
+
+
 def update_env_curriculum_weights(env, new_weights: Dict[str, float]) -> bool:
     """Walk env wrapper chain, find opponent_policy with set_pool_weights, update.
     Returns True if a CurriculumOpponentPolicy was found and updated, False otherwise.

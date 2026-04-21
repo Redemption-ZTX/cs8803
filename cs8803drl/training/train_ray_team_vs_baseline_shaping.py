@@ -38,12 +38,14 @@ from cs8803drl.branches.team_siamese import (
     TEAM_SIAMESE_TRANSFORMER_MHA_MODEL_NAME,
     TEAM_SIAMESE_TRANSFORMER_MIN_MODEL_NAME,
     TEAM_SIAMESE_CROSS_AGENT_ATTN_MODEL_NAME,
+    TEAM_SIAMESE_CROSS_AGENT_ATTN_MEDIUM_MODEL_NAME,
     register_team_siamese_cross_attention_model,
     register_team_siamese_model,
     register_team_siamese_transformer_model,
     register_team_siamese_transformer_mha_model,
     register_team_siamese_transformer_min_model,
     register_team_siamese_cross_agent_attn_model,
+    register_team_siamese_cross_agent_attn_medium_model,
 )
 from cs8803drl.branches.team_siamese_distill import (
     TEAM_SIAMESE_DISTILL_MODEL_NAME,
@@ -107,16 +109,38 @@ class CurriculumUpdateCallback(DefaultCallbacks):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from cs8803drl.branches.curriculum import (
+            AdaptiveCurriculumPhaseScheduler,
             CurriculumPhaseScheduler,
             parse_curriculum_phases,
+            parse_gate_rewards,
         )
         spec = os.environ.get("CURRICULUM_PHASES", "").strip()
         phases = parse_curriculum_phases(spec)
+        self._adaptive = (os.environ.get("CURRICULUM_ADAPTIVE", "0").strip() == "1")
         # Tolerate missing env at instantiation time (e.g., during ckpt-load at
         # eval/deploy time). Only the on_train_result path actually uses the
         # scheduler; at eval time no training happens.
         if phases:
-            self._scheduler = CurriculumPhaseScheduler(phases)
+            if self._adaptive:
+                gate_rewards = parse_gate_rewards(
+                    os.environ.get("CURRICULUM_GATE_REWARDS", "")
+                )
+                if len(gate_rewards) != len(phases) - 1:
+                    raise ValueError(
+                        f"CURRICULUM_ADAPTIVE=1 requires CURRICULUM_GATE_REWARDS "
+                        f"with {len(phases) - 1} values (one per transition); got "
+                        f"{len(gate_rewards)} values."
+                    )
+                min_phase_iters = int(os.environ.get("CURRICULUM_MIN_PHASE_ITERS", "50"))
+                max_phase_wait = int(os.environ.get("CURRICULUM_MAX_PHASE_WAIT", "200"))
+                self._scheduler = AdaptiveCurriculumPhaseScheduler(
+                    phases,
+                    gate_rewards=gate_rewards,
+                    min_phase_iters=min_phase_iters,
+                    max_phase_wait=max_phase_wait,
+                )
+            else:
+                self._scheduler = CurriculumPhaseScheduler(phases)
         else:
             self._scheduler = None
         self._last_baseline_prob = -1.0  # force first push
@@ -125,8 +149,18 @@ class CurriculumUpdateCallback(DefaultCallbacks):
         if self._scheduler is None:
             return  # eval/deploy context: no curriculum to apply
         cur_iter = int(result.get("training_iteration", 0))
-        new_baseline_prob = self._scheduler.baseline_prob_for_iter(cur_iter)
-        new_weights = self._scheduler.compute_weights_dict(cur_iter)
+        if self._adaptive:
+            recent_reward = float(result.get("episode_reward_mean", float("-inf")))
+            new_baseline_prob = self._scheduler.try_advance(cur_iter, recent_reward)
+            # compute_weights_dict() reads internal _current_phase_idx via
+            # baseline_prob_for_iter(); pass the advanced iter to get consistent weights
+            new_weights = {
+                "baseline": float(new_baseline_prob),
+                "random": float(1.0 - new_baseline_prob),
+            }
+        else:
+            new_baseline_prob = self._scheduler.baseline_prob_for_iter(cur_iter)
+            new_weights = self._scheduler.compute_weights_dict(cur_iter)
         # Only push if changed (avoid spam when within same phase)
         if abs(new_baseline_prob - self._last_baseline_prob) < 1e-6:
             # Still report current phase to result for logging
@@ -664,6 +698,7 @@ def main():
     team_transformer_min = _env_bool("TEAM_TRANSFORMER_MIN", False)
     team_cross_agent_attn = _env_bool("TEAM_CROSS_AGENT_ATTN", False)
     team_cross_agent_attn_dim = _env_int("TEAM_CROSS_AGENT_ATTN_DIM", 64)
+    team_cross_agent_attn_medium = _env_bool("TEAM_CROSS_AGENT_ATTN_MEDIUM", False)
     team_transformer_mha = _env_bool("TEAM_TRANSFORMER_MHA", False)
     team_transformer_ffn_hidden = _env_int("TEAM_TRANSFORMER_FFN_HIDDEN", 512)
     team_transformer_ffn_activation = (
@@ -687,6 +722,10 @@ def main():
     team_distill_ensemble_kl = _env_bool("TEAM_DISTILL_ENSEMBLE_KL", False)
     team_distill_teacher_ensemble_paths = (
         os.environ.get("TEAM_DISTILL_TEACHER_ENSEMBLE_CHECKPOINTS", "").strip() or None
+    )
+    # snapshot-066 BAN progressive distill: weighted ensemble (recency bias)
+    team_distill_teacher_weights = (
+        os.environ.get("TEAM_DISTILL_TEACHER_WEIGHTS", "").strip() or None
     )
     aux_team_action_head = _env_bool("AUX_TEAM_ACTION_HEAD", False)
     aux_team_action_symmetric = _env_bool("AUX_TEAM_ACTION_SYMMETRIC", False)
@@ -825,6 +864,7 @@ def main():
     register_team_siamese_transformer_mha_model()
     register_team_siamese_transformer_min_model()
     register_team_siamese_cross_agent_attn_model()
+    register_team_siamese_cross_agent_attn_medium_model()
     register_team_siamese_distill_model()
     register_team_siamese_ensemble_distill_model()
     register_team_action_aux_model()
@@ -896,10 +936,22 @@ def main():
                 "attention_n_tokens": team_cross_attention_tokens,
                 "attention_head_dim": team_cross_attention_dim,
                 "teacher_ensemble_checkpoints": team_distill_teacher_ensemble_paths,
+                "teacher_weights": team_distill_teacher_weights,
                 "distill_alpha_init": team_distill_alpha_init,
                 "distill_alpha_final": team_distill_alpha_final,
                 "distill_decay_updates": team_distill_decay_updates,
                 "distill_temperature": team_distill_temperature,
+            }
+        elif team_cross_agent_attn_medium:
+            # 054M: 054 cross-agent attention + pre-LN + post-attention FFN residual (single head)
+            custom_model_name = TEAM_SIAMESE_CROSS_AGENT_ATTN_MEDIUM_MODEL_NAME
+            model_config["custom_model"] = custom_model_name
+            model_config["custom_model_config"] = {
+                "encoder_hiddens": team_siamese_encoder_hiddens,
+                "merge_hiddens": team_siamese_merge_hiddens,
+                "attention_n_tokens": team_cross_attention_tokens,
+                "attention_head_dim": team_cross_attention_dim,
+                "cross_agent_attn_dim": team_cross_agent_attn_dim,
             }
         elif team_cross_agent_attn:
             # 054 MAT-min: 031B + cross-agent attention residual block (no FFN/LN)

@@ -17,6 +17,7 @@ TEAM_SIAMESE_TRANSFORMER_MODEL_NAME = "team_siamese_transformer_model"
 TEAM_SIAMESE_TRANSFORMER_MIN_MODEL_NAME = "team_siamese_transformer_min_model"
 TEAM_SIAMESE_TRANSFORMER_MHA_MODEL_NAME = "team_siamese_transformer_mha_model"
 TEAM_SIAMESE_CROSS_AGENT_ATTN_MODEL_NAME = "team_siamese_cross_agent_attn_model"
+TEAM_SIAMESE_CROSS_AGENT_ATTN_MEDIUM_MODEL_NAME = "team_siamese_cross_agent_attn_medium_model"
 
 
 def _parse_hiddens(values: Sequence[int], default):
@@ -641,6 +642,110 @@ def register_team_siamese_cross_agent_attn_model():
             RLLIB_MODEL,
             TEAM_SIAMESE_CROSS_AGENT_ATTN_MODEL_NAME,
             SiameseCrossAgentAttnTeamTorchModel,
+        )
+    except ValueError:
+        pass
+
+
+# 054M (MAT-medium): 054 cross-agent attention + pre-attention LayerNorm + post-attention FFN residual.
+# Between 054 MAT-min (residual-only, 0.880 tied 031B) and 052 full-transformer (REGRESSION -8 ~ -11pp).
+# Additions vs 054:
+#   + LayerNorm(encoder_out) applied to agent_stack BEFORE Q/K/V (classical pre-LN)
+#   + FFN block: Linear(256 → 4*256=1024) → GELU → Linear(1024 → 256), residual-added to att_out
+#   - NO second LayerNorm (keep conservative; avoid 052's dual-LN regression)
+#   - NO MHA (single head)
+# Graceful degrade: FFN output init to zero → starts equivalent to 054 MAT-min.
+class SiameseCrossAgentAttnMediumTeamTorchModel(SiameseCrossAgentAttnTeamTorchModel):
+    """054M: 054 + pre-attention LN + post-attention FFN residual (single head)."""
+
+    def __init__(self, obs_space, action_space, num_outputs, model_config, name):
+        super().__init__(obs_space, action_space, num_outputs, model_config, name)
+        # Pre-attention LN over encoder_out dim (classical pre-LN transformer)
+        self._ca_pre_ln = nn.LayerNorm(self._encoder_out)
+
+        # FFN block: encoder_out → 4*encoder_out → encoder_out (standard transformer ratio)
+        ffn_hidden = self._encoder_out * 4
+        self._ca_ffn = nn.Sequential(
+            nn.Linear(self._encoder_out, ffn_hidden),
+            nn.GELU(),
+            nn.Linear(ffn_hidden, self._encoder_out),
+        )
+        # Init FFN output layer to zero → residual starts at identity (054 behavior at init)
+        nn.init.zeros_(self._ca_ffn[-1].weight)
+        nn.init.zeros_(self._ca_ffn[-1].bias)
+
+    def forward(self, input_dict, state, seq_lens):
+        obs = input_dict["obs_flat"].float()
+        obs0 = obs[:, : self._half_obs_dim]
+        obs1 = obs[:, self._half_obs_dim:]
+
+        feat0 = self.shared_encoder(obs0)
+        feat1 = self.shared_encoder(obs1)
+
+        batch_size = feat0.shape[0]
+        tokens0 = feat0.view(batch_size, self._n_tokens, self._head_dim)
+        tokens1 = feat1.view(batch_size, self._n_tokens, self._head_dim)
+
+        attn0_out, attn0_weights = self._attend(tokens0, tokens1)
+        attn1_out, attn1_weights = self._attend(tokens1, tokens0)
+        attended0 = attn0_out.reshape(batch_size, self._encoder_out)
+        attended1 = attn1_out.reshape(batch_size, self._encoder_out)
+
+        # cross-AGENT attention with pre-LN (054M addition)
+        agent_stack = torch.stack([attended0, attended1], dim=1)  # (B, 2, 256)
+        agent_stack_ln = self._ca_pre_ln(agent_stack)             # (B, 2, 256) — pre-LN
+        q = self._ca_q_proj(agent_stack_ln)
+        k = self._ca_k_proj(agent_stack_ln)
+        v = self._ca_v_proj(agent_stack_ln)
+        ca_scores = torch.matmul(q, k.transpose(-1, -2)) / math.sqrt(self._cross_agent_attn_dim)
+        ca_weights = torch.softmax(ca_scores, dim=-1)
+        ca_out = torch.matmul(ca_weights, v)  # (B, 2, 256)
+
+        # Attention residual: agent_stack + ca_out
+        att_residual = agent_stack + ca_out   # (B, 2, 256)
+
+        # FFN block with residual (054M addition)
+        ffn_out = self._ca_ffn(att_residual)  # (B, 2, 256), starts zero due to init
+        final_stack = att_residual + ffn_out  # residual add, init ≈ att_residual ≈ 054 MAT-min
+
+        final0 = final_stack[:, 0]
+        final1 = final_stack[:, 1]
+
+        merged_input = torch.cat([feat0, final0, feat1, final1], dim=1)
+        merged = self.merge_mlp(merged_input)
+
+        logits = self.logits_layer(merged)
+        self._value_out = self.value_layer(merged).squeeze(1)
+
+        with torch.no_grad():
+            cos = nn.functional.cosine_similarity(feat0, feat1, dim=1).mean()
+            ent0 = -(attn0_weights * (attn0_weights + 1e-9).log()).sum(dim=-1)
+            ent1 = -(attn1_weights * (attn1_weights + 1e-9).log()).sum(dim=-1)
+            ca_ent = -(ca_weights * (ca_weights + 1e-9).log()).sum(dim=-1)
+            ca_delta_norm = (ca_out[:, 0].norm(dim=-1) + ca_out[:, 1].norm(dim=-1)) / 2.0
+            ffn_delta_norm = (ffn_out[:, 0].norm(dim=-1) + ffn_out[:, 1].norm(dim=-1)) / 2.0
+            self._metrics = {
+                "encoder_cos_sim_mean": float(cos.detach().cpu().item()),
+                "attention_entropy_mean": float(torch.cat([ent0, ent1], dim=1).mean().detach().cpu().item()),
+                "cross_agent_attn_entropy_mean": float(ca_ent.mean().detach().cpu().item()),
+                "cross_agent_residual_norm_mean": float(ca_delta_norm.mean().detach().cpu().item()),
+                "ffn_residual_norm_mean": float(ffn_delta_norm.mean().detach().cpu().item()),
+            }
+
+        return logits, state
+
+
+def register_team_siamese_cross_agent_attn_medium_model():
+    try:
+        ModelCatalog.register_custom_model(
+            TEAM_SIAMESE_CROSS_AGENT_ATTN_MEDIUM_MODEL_NAME,
+            SiameseCrossAgentAttnMediumTeamTorchModel,
+        )
+    except AttributeError:
+        _global_registry.register(
+            RLLIB_MODEL,
+            TEAM_SIAMESE_CROSS_AGENT_ATTN_MEDIUM_MODEL_NAME,
+            SiameseCrossAgentAttnMediumTeamTorchModel,
         )
     except ValueError:
         pass

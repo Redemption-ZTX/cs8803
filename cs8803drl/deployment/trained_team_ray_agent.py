@@ -26,6 +26,7 @@ from ray.tune.registry import get_trainable_cls
 
 from soccer_twos import AgentInterface
 from cs8803drl.branches.team_siamese import (
+    register_team_siamese_cross_agent_attn_medium_model,
     register_team_siamese_cross_agent_attn_model,
     register_team_siamese_cross_attention_model,
     register_team_siamese_model,
@@ -147,6 +148,7 @@ class TeamRayAgent(AgentInterface):
         register_team_siamese_model()
         register_team_siamese_cross_attention_model()
         register_team_siamese_cross_agent_attn_model()
+        register_team_siamese_cross_agent_attn_medium_model()
         register_team_siamese_transformer_model()
         register_team_siamese_transformer_mha_model()
         register_team_siamese_transformer_min_model()
