@@ -1,0 +1,42 @@
+{
+  "batch_mode": "truncate_episodes",
+  "clip_param": 0.2,
+  "entropy_coeff": 0.0,
+  "env": "Soccer",
+  "env_config": {
+    "base_port": 64105,
+    "flatten_branched": true,
+    "multiagent": false,
+    "num_envs_per_worker": 1,
+    "opponent_mix": {
+      "baseline_prob": 1.0
+    },
+    "reward_shaping": false,
+    "scenario_reset": null,
+    "single_player": true,
+    "teammate_checkpoint": "/home/hice1/wsun377/Desktop/cs8803drl/ray_results/PPO_continue_ckpt160_cpu32_20260408_183648/PPO_Soccer_79ad0_00000_0_2026-04-08_18-37-08/checkpoint_000225/checkpoint-225",
+    "variation": "EnvType.team_vs_policy"
+  },
+  "framework": "torch",
+  "gamma": 0.99,
+  "lambda": 0.95,
+  "log_level": "WARN",
+  "log_sys_usage": false,
+  "lr": 0.0001,
+  "model": {
+    "fcnet_activation": "relu",
+    "fcnet_hiddens": [
+      256,
+      128
+    ],
+    "vf_share_layers": true
+  },
+  "num_envs_per_worker": 1,
+  "num_gpus": 0,
+  "num_sgd_iter": 1,
+  "num_workers": 0,
+  "rollout_fragment_length": 100,
+  "sgd_minibatch_size": 50,
+  "simple_optimizer": true,
+  "train_batch_size": 100
+}

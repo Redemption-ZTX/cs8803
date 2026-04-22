@@ -1,0 +1,48 @@
+{
+  "best_val_loss": 0.37417551605816346,
+  "best_epoch": 7,
+  "n_epochs": 10,
+  "n_train": 190608,
+  "n_val": 21178,
+  "label_version": "v2",
+  "head_names": [
+    "defensive_pin",
+    "territorial_dominance",
+    "wasted_possession",
+    "possession_stolen",
+    "progress_deficit"
+  ],
+  "head_to_labels": {
+    "defensive_pin": [
+      "defensive_pin"
+    ],
+    "territorial_dominance": [
+      "territorial_dominance"
+    ],
+    "wasted_possession": [
+      "wasted_possession"
+    ],
+    "possession_stolen": [
+      "possession_stolen"
+    ],
+    "progress_deficit": [
+      "progress_deficit"
+    ]
+  },
+  "model_config": {
+    "obs_dim": 336,
+    "use_action": true,
+    "hidden_dims": [
+      256,
+      256
+    ],
+    "head_hidden": 128
+  },
+  "classifier_thresholds": {
+    "defensive_pin_tail_x": -3.0,
+    "territorial_dominance_mean_x": -1.5,
+    "wasted_possession_ratio": 0.55,
+    "possession_stolen_ratio": 0.35,
+    "progress_deficit_gap": 3.0
+  }
+}

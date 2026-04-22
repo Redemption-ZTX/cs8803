@@ -1,0 +1,63 @@
+[INFO] Connected to Unity environment with package version 2.1.0-exp.1 and communication version 1.5.0
+[INFO] Connected new brain: SoccerTwos?team=1
+[INFO] Connected new brain: SoccerTwos?team=0
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+I0000 00:00:1776567900.087466  677877 fork_posix.cc:75] Other threads are currently calling into gRPC, skipping fork() handlers
+/home/hice1/wsun377/Desktop/cs8803drl/sitecustomize.py:7: FutureWarning: In the future `np.bool` will be defined as the corresponding NumPy scalar.
+  if not hasattr(np, "bool"):
+/home/hice1/wsun377/Desktop/cs8803drl/sitecustomize.py:10: FutureWarning: In the future `np.object` will be defined as the corresponding NumPy scalar.
+  if not hasattr(np, "object"):
+/home/hice1/wsun377/Desktop/cs8803drl/sitecustomize.py:19: FutureWarning: In the future `np.str` will be defined as the corresponding NumPy scalar.
+  if not hasattr(np, "str"):
+/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/autoscaler/_private/cli_logger.py:57: FutureWarning: Not all Ray CLI dependencies were found. In Ray 1.4+, the Ray CLI, autoscaler, and dashboard will only be usable via `pip install 'ray[default]'`. Please update your install command.
+  warnings.warn(
+INFO:mlagents_envs.environment:Connected to Unity environment with package version 2.1.0-exp.1 and communication version 1.5.0
+INFO:mlagents_envs.environment:Connected new brain: SoccerTwos?team=1
+INFO:mlagents_envs.environment:Connected new brain: SoccerTwos?team=0
+I0000 00:00:1776567901.174779  677877 fork_posix.cc:75] Other threads are currently calling into gRPC, skipping fork() handlers
+I0000 00:00:1776567901.343284  677877 fork_posix.cc:75] Other threads are currently calling into gRPC, skipping fork() handlers
+I0000 00:00:1776567901.460173  677877 fork_posix.cc:75] Other threads are currently calling into gRPC, skipping fork() handlers
+I0000 00:00:1776567901.473754  677877 fork_posix.cc:75] Other threads are currently calling into gRPC, skipping fork() handlers
+I0000 00:00:1776567901.488030  677877 fork_posix.cc:75] Other threads are currently calling into gRPC, skipping fork() handlers
+I0000 00:00:1776567901.500348  677877 fork_posix.cc:75] Other threads are currently calling into gRPC, skipping fork() handlers
+2026-04-18 23:05:03,601	INFO ppo_tf_policy.py:327 -- `vf_share_layers=True` in your model. Therefore, remember to tune the value of `vf_loss_coeff`!
+Traceback (most recent call last):
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/runpy.py", line 194, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/runpy.py", line 87, in _run_code
+    exec(code, run_globals)
+  File "/home/hice1/wsun377/Desktop/cs8803drl/cs8803drl/evaluation/evaluate_matches.py", line 496, in <module>
+    main()
+  File "/home/hice1/wsun377/Desktop/cs8803drl/cs8803drl/evaluation/evaluate_matches.py", line 340, in main
+    agent0 = load_agent(args.team0_module, env)
+  File "/home/hice1/wsun377/Desktop/cs8803drl/cs8803drl/evaluation/evaluate_matches.py", line 66, in load_agent
+    return cls(env)
+  File "/home/hice1/wsun377/Desktop/cs8803drl/cs8803drl/deployment/trained_team_ray_agent.py", line 146, in __init__
+    trainer = cls(env=config["env"], config=config)
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer_template.py", line 123, in __init__
+    Trainer.__init__(self, config, env, logger_creator)
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 548, in __init__
+    super().__init__(config, logger_creator)
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/trainable.py", line 98, in __init__
+    self.setup(copy.deepcopy(self.config))
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 709, in setup
+    self._init(self.config, self.env_creator)
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer_template.py", line 150, in _init
+    self.workers = self._make_workers(
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/agents/trainer.py", line 791, in _make_workers
+    return WorkerSet(
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/evaluation/worker_set.py", line 92, in __init__
+    self._local_worker = self._make_worker(
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/evaluation/worker_set.py", line 367, in _make_worker
+    worker = cls(
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/evaluation/rollout_worker.py", line 536, in __init__
+    self.policy_map, self.preprocessors = self._build_policy_map(
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/evaluation/rollout_worker.py", line 1196, in _build_policy_map
+    policy_map[name] = cls(obs_space, act_space, merged_conf)
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/policy/policy_template.py", line 242, in __init__
+    self.model = ModelCatalog.get_model_v2(
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/rllib/models/catalog.py", line 403, in get_model_v2
+    model_cls = _global_registry.get(RLLIB_MODEL,
+  File "/home/hice1/wsun377/.conda/envs/soccertwos/lib/python3.8/site-packages/ray/tune/registry.py", line 137, in get
+    raise ValueError(
+ValueError: Registry value for rllib_model/team_siamese_cross_attention_model doesn't exist.

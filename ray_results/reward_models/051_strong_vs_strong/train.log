@@ -1,0 +1,102 @@
+[cli] label_version=v2  thresholds={'defensive_pin_tail_x': -3.0, 'territorial_dominance_mean_x': -1.5, 'wasted_possession_ratio': 0.55, 'possession_stolen_ratio': 0.35, 'progress_deficit_gap': 3.0}
+[build] scanning trajectory directories...
+  scanning /home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/trajectories/051_strong_vs_strong/031B_vs_031A: 200 episodes
+  scanning /home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/trajectories/051_strong_vs_strong/036D_vs_029B: 200 episodes
+  scanning /home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/trajectories/051_strong_vs_strong/025b_vs_029B: 200 episodes
+  scanning /home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/trajectories/051_strong_vs_strong/036D_vs_031A: 200 episodes
+  scanning /home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/trajectories/051_strong_vs_strong/031A_vs_028A: 200 episodes
+  scanning /home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/trajectories/051_strong_vs_strong/031A_vs_031B_REV: 200 episodes
+  scanning /home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/trajectories/051_strong_vs_strong/029B_vs_036D_REV: 200 episodes
+  scanning /home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/trajectories/051_strong_vs_strong/029B_vs_025b_REV: 200 episodes
+  scanning /home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/trajectories/051_strong_vs_strong/031A_vs_036D_REV: 200 episodes
+  scanning /home/hice1/wsun377/Desktop/cs8803drl/docs/experiments/artifacts/trajectories/051_strong_vs_strong/028A_vs_031A_REV: 200 episodes
+
+  [build] table size: 211786 samples
+  [build] outcome episode counts: {'team0_win': 1002, 'team1_win': 998}
+  [build] label episode counts:
+    win                               1002
+    territorial_dominance              449
+    defensive_pin                      411
+    wasted_possession                  409
+    progress_deficit                   355
+    possession_stolen                  218
+    unclear_loss                       157
+  [build] per-head sample count (mask=True):
+    defensive_pin          W_pos=114598  L_neg= 42534
+    territorial_dominance  W_pos=114598  L_neg= 48508
+    wasted_possession      W_pos=114598  L_neg= 45260
+    possession_stolen      W_pos=114598  L_neg= 19030
+    progress_deficit       W_pos=114598  L_neg= 44576
+[train] device=cuda  out_dir=/home/hice1/wsun377/Desktop/cs8803drl/ray_results/reward_models/051_strong_vs_strong
+[train] label_version=v2  heads=('defensive_pin', 'territorial_dominance', 'wasted_possession', 'possession_stolen', 'progress_deficit')
+[train] model params: 319,493  use_action=True
+[train] samples: train=190608  val=21178
+[epoch  1/10] tr_loss(mean/head)=0.4435  val_loss(mean/head)=0.4016  elapsed=5.4s
+  defensive_pin           val_loss=0.4073  acc=0.705  (n_mask=15727)
+  territorial_dominance   val_loss=0.4265  acc=0.684  (n_mask=16268)
+  wasted_possession       val_loss=0.4277  acc=0.686  (n_mask=16101)
+  possession_stolen       val_loss=0.3262  acc=0.815  (n_mask=13368)
+  progress_deficit        val_loss=0.4203  acc=0.697  (n_mask=15871)
+  → saved best checkpoint (val_loss=0.4016) to reward_model.pt
+[epoch  2/10] tr_loss(mean/head)=0.3943  val_loss(mean/head)=0.3850  elapsed=4.4s
+  defensive_pin           val_loss=0.3892  acc=0.701  (n_mask=15727)
+  territorial_dominance   val_loss=0.4095  acc=0.680  (n_mask=16268)
+  wasted_possession       val_loss=0.4102  acc=0.688  (n_mask=16101)
+  possession_stolen       val_loss=0.3132  acc=0.814  (n_mask=13368)
+  progress_deficit        val_loss=0.4028  acc=0.695  (n_mask=15871)
+  → saved best checkpoint (val_loss=0.3850) to reward_model.pt
+[epoch  3/10] tr_loss(mean/head)=0.3774  val_loss(mean/head)=0.3809  elapsed=4.4s
+  defensive_pin           val_loss=0.3837  acc=0.715  (n_mask=15727)
+  territorial_dominance   val_loss=0.4044  acc=0.689  (n_mask=16268)
+  wasted_possession       val_loss=0.4093  acc=0.694  (n_mask=16101)
+  possession_stolen       val_loss=0.3090  acc=0.817  (n_mask=13368)
+  progress_deficit        val_loss=0.3982  acc=0.706  (n_mask=15871)
+  → saved best checkpoint (val_loss=0.3809) to reward_model.pt
+[epoch  4/10] tr_loss(mean/head)=0.3628  val_loss(mean/head)=0.3763  elapsed=4.4s
+  defensive_pin           val_loss=0.3799  acc=0.712  (n_mask=15727)
+  territorial_dominance   val_loss=0.3989  acc=0.693  (n_mask=16268)
+  wasted_possession       val_loss=0.4036  acc=0.698  (n_mask=16101)
+  possession_stolen       val_loss=0.3067  acc=0.817  (n_mask=13368)
+  progress_deficit        val_loss=0.3923  acc=0.706  (n_mask=15871)
+  → saved best checkpoint (val_loss=0.3763) to reward_model.pt
+[epoch  5/10] tr_loss(mean/head)=0.3500  val_loss(mean/head)=0.3794  elapsed=4.4s
+  defensive_pin           val_loss=0.3832  acc=0.700  (n_mask=15727)
+  territorial_dominance   val_loss=0.4020  acc=0.681  (n_mask=16268)
+  wasted_possession       val_loss=0.4045  acc=0.689  (n_mask=16101)
+  possession_stolen       val_loss=0.3098  acc=0.792  (n_mask=13368)
+  progress_deficit        val_loss=0.3975  acc=0.691  (n_mask=15871)
+[epoch  6/10] tr_loss(mean/head)=0.3374  val_loss(mean/head)=0.3743  elapsed=4.4s
+  defensive_pin           val_loss=0.3798  acc=0.715  (n_mask=15727)
+  territorial_dominance   val_loss=0.3989  acc=0.698  (n_mask=16268)
+  wasted_possession       val_loss=0.4025  acc=0.704  (n_mask=16101)
+  possession_stolen       val_loss=0.3023  acc=0.825  (n_mask=13368)
+  progress_deficit        val_loss=0.3881  acc=0.710  (n_mask=15871)
+  → saved best checkpoint (val_loss=0.3743) to reward_model.pt
+[epoch  7/10] tr_loss(mean/head)=0.3242  val_loss(mean/head)=0.3746  elapsed=4.4s
+  defensive_pin           val_loss=0.3783  acc=0.711  (n_mask=15727)
+  territorial_dominance   val_loss=0.3973  acc=0.693  (n_mask=16268)
+  wasted_possession       val_loss=0.4015  acc=0.694  (n_mask=16101)
+  possession_stolen       val_loss=0.3046  acc=0.808  (n_mask=13368)
+  progress_deficit        val_loss=0.3914  acc=0.706  (n_mask=15871)
+[epoch  8/10] tr_loss(mean/head)=0.3120  val_loss(mean/head)=0.3742  elapsed=4.4s
+  defensive_pin           val_loss=0.3784  acc=0.712  (n_mask=15727)
+  territorial_dominance   val_loss=0.3987  acc=0.694  (n_mask=16268)
+  wasted_possession       val_loss=0.3996  acc=0.696  (n_mask=16101)
+  possession_stolen       val_loss=0.3044  acc=0.816  (n_mask=13368)
+  progress_deficit        val_loss=0.3897  acc=0.709  (n_mask=15871)
+  → saved best checkpoint (val_loss=0.3742) to reward_model.pt
+[epoch  9/10] tr_loss(mean/head)=0.2987  val_loss(mean/head)=0.3855  elapsed=4.4s
+  defensive_pin           val_loss=0.3894  acc=0.701  (n_mask=15727)
+  territorial_dominance   val_loss=0.4094  acc=0.687  (n_mask=16268)
+  wasted_possession       val_loss=0.4120  acc=0.688  (n_mask=16101)
+  possession_stolen       val_loss=0.3184  acc=0.786  (n_mask=13368)
+  progress_deficit        val_loss=0.3983  acc=0.691  (n_mask=15871)
+[epoch 10/10] tr_loss(mean/head)=0.2861  val_loss(mean/head)=0.3906  elapsed=4.4s
+  defensive_pin           val_loss=0.3966  acc=0.707  (n_mask=15727)
+  territorial_dominance   val_loss=0.4158  acc=0.686  (n_mask=16268)
+  wasted_possession       val_loss=0.4160  acc=0.684  (n_mask=16101)
+  possession_stolen       val_loss=0.3188  acc=0.798  (n_mask=13368)
+  progress_deficit        val_loss=0.4060  acc=0.693  (n_mask=15871)
+[train] done. best val_loss=0.3742 @ epoch 8
+[train] checkpoint: /home/hice1/wsun377/Desktop/cs8803drl/ray_results/reward_models/051_strong_vs_strong/reward_model.pt
+[train] metadata:   /home/hice1/wsun377/Desktop/cs8803drl/ray_results/reward_models/051_strong_vs_strong/metadata.json
