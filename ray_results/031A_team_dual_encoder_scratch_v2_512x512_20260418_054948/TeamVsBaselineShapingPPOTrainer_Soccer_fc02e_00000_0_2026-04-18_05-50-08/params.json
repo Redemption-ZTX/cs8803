@@ -1,0 +1,82 @@
+{
+  "batch_mode": "truncate_episodes",
+  "clip_param": 0.15,
+  "entropy_coeff": 0.0,
+  "env": "Soccer",
+  "env_config": {
+    "base_port": 64305,
+    "multiagent": false,
+    "num_envs_per_worker": 5,
+    "opponent_mix": {
+      "baseline_prob": 1.0
+    },
+    "reward_shaping": {
+      "ball_progress_scale": 0.01,
+      "clearance_from_x": -8.0,
+      "clearance_to_x": -4.0,
+      "debug_info": false,
+      "deep_zone_inner_penalty": 0.003,
+      "deep_zone_inner_threshold": -12.0,
+      "deep_zone_outer_penalty": 0.003,
+      "deep_zone_outer_threshold": -8.0,
+      "defensive_survival_bonus": 0.0,
+      "defensive_survival_threshold": 0.0,
+      "event_clearance_reward": 0.0,
+      "event_cooldown_steps": 10,
+      "event_shot_reward": 0.0,
+      "event_tackle_reward": 0.0,
+      "fast_loss_penalty_per_step": 0.0,
+      "fast_loss_threshold_steps": 0,
+      "goal_center_x": 15.0,
+      "goal_center_y": 0.0,
+      "goal_proximity_gamma": 0.99,
+      "goal_proximity_scale": 0.0,
+      "opponent_progress_penalty_scale": 0.01,
+      "possession_bonus": 0.002,
+      "possession_dist": 1.25,
+      "progress_requires_possession": false,
+      "shot_ball_dx_min": 0.5,
+      "shot_x_threshold": 10.0,
+      "team_coverage_scale": 0.0,
+      "team_near_ball_threshold": 3.0,
+      "team_potential_gamma": 0.99,
+      "team_spacing_max": 6.0,
+      "team_spacing_min": 2.0,
+      "team_spacing_scale": 0.0,
+      "time_penalty": 0.001
+    },
+    "variation": "EnvType.team_vs_policy"
+  },
+  "framework": "torch",
+  "gamma": 0.99,
+  "lambda": 0.95,
+  "log_level": "INFO",
+  "log_sys_usage": false,
+  "lr": 0.0001,
+  "model": {
+    "custom_model": "team_siamese_model",
+    "custom_model_config": {
+      "encoder_hiddens": [
+        256,
+        256
+      ],
+      "merge_hiddens": [
+        256,
+        128
+      ]
+    },
+    "fcnet_activation": "relu",
+    "fcnet_hiddens": [
+      512,
+      512
+    ],
+    "vf_share_layers": true
+  },
+  "num_envs_per_worker": 5,
+  "num_gpus": 1,
+  "num_sgd_iter": 4,
+  "num_workers": 8,
+  "rollout_fragment_length": 1000,
+  "sgd_minibatch_size": 2048,
+  "train_batch_size": 40000
+}
