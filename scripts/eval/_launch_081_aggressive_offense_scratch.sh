@@ -80,5 +80,5 @@ export BASE_PORT=$((55605 + PORT_OFFSET))
 export LOG_LEVEL=INFO LOG_SYS_USAGE=0
 
 mkdir -p docs/experiments/artifacts/slurm-logs
-LOG=docs/experiments/artifacts/slurm-logs/055_distill_train_$(date +%Y%m%d_%H%M%S).log
+LOG=docs/experiments/artifacts/slurm-logs/081_aggressive_train_$(date +%Y%m%d_%H%M%S).log
 $PYTHON_BIN -u -m cs8803drl.training.train_ray_team_vs_baseline_shaping 2>&1 | tee "$LOG"
