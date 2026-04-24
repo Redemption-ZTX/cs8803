@@ -244,9 +244,80 @@ TIME_TOTAL_S=43200 EVAL_INTERVAL=10 CHECKPOINT_FREQ=10
 - [ ] 14. Verdict append §7, 严格按 §3 判据
 - [ ] 15. 更新 rank.md + README.md + BACKLOG.md + task-queue
 
-## 7. Verdict (待 combined 2000ep eval 后 append)
+## 7. Verdict — §3.4 TIED (cross-reward distill saturate, 5/5 distill ceiling 确认, 2026-04-22 append-only)
 
-_Pending — awaiting 068 completion (~12h from 06:05 EDT = ~18:00 EDT), then peak ckpt identification, then Pool D launch._
+### 7.1 Stage 1 baseline 1000ep on resume v2 (2026-04-22 [00:30 EDT])
+
+- 训练历史: scratch warm-031B@80 → ckpt 920 (first run), then RESTORE_CHECKPOINT resume → ckpt 1250 (PORT_SEED=87 fix on 5033290)
+- Trial: `073_poolD_resume920_to_1250_20260421_211734/TeamVsBaselineShapingPPOTrainer_Soccer_18687_00000_0_2026-04-21_21-17-57`
+- Inline best (200ep noisy): 0.935 @ ckpt-1060 — but mean-reverts heavily on 1000ep eval
+- Selected ckpts (top 10% fallback, 12 ckpts): 1050-1100 / 1180-1230
+- Eval node: atl1-1-03-015-16-0 (5033290), port 60505, 527s parallel-7
+
+| ckpt | 1000ep WR | NW-ML | inline 200ep | Δ (200→1000) |
+|---:|---:|:---:|---:|---:|
+| **🏆 1050** | **0.909** | 909-91 | — | — |
+| **🏆 1090** | **0.909** | 909-91 | 0.92 | -0.011 |
+| 1210 | 0.904 | 904-96 | 0.925 | -0.021 |
+| 1060 | 0.902 | 902-98 | **0.935** | **-0.033** |
+| 1200 | 0.902 | 902-98 | 0.92 | -0.018 |
+| 1080 | 0.901 | 901-99 | — | — |
+| 1100 | 0.901 | 901-99 | — | — |
+| 1180 | 0.895 | 895-105 | — | — |
+| 1190 | 0.895 | 895-105 | 0.92 | -0.025 |
+| 1220 | 0.887 | 887-113 | 0.92 | -0.033 |
+| 1230 | 0.887 | 887-113 | — | — |
+| 1070 | 0.883 | 883-117 | — | — |
+
+**peak = 0.909 dual-peak 1050+1090, mean(top 6) ~0.905, range [0.883, 0.909]**
+
+**Inline 200ep 大幅 mean-revert**: 1060 (200ep 0.935 → 1000ep 0.902, **-0.033**), 1220 (0.92 → 0.887, **-0.033**), 1210 (0.925 → 0.904, -0.021)。再次确认 200ep noise SE ±0.05 的 risk (`feedback_inline_eval_noise.md`)。
+
+### 7.2 严格按 §3 判据
+
+| 阈值 | 实测 single-shot 1000ep | verdict |
+|---|---|---|
+| §3.1 marginal ≥ 0.911 | ❌ 0.909 (just below) | not met |
+| §3.2 main ≥ 0.915 | ❌ | not met |
+| §3.3 breakthrough ≥ 0.925 | ❌ | not met |
+| **§3.4 持平 [0.895, 0.911)** | **✅ 0.909 in range** | **TIED, cross-reward NO LIFT** |
+| §3.5 regression < 0.890 | ❌ 0.909 well above | no regression |
+
+**Δ vs prior SOTA 055@1150 combined 0.907 = +0.002 within SE 统计 tied**。 **Δ vs 1750 NEW SOTA combined 4000ep 0.9155 = -0.007 within SE**。 **Δ vs Pool A 071 (0.903) = +0.006 marginal 但 within SE**。
+
+注: 当前是 single-shot 1000ep (SE ±0.012), CI [0.891, 0.927]; 真值不能排除 0.91 区间, 但也未达 §3.1 阈值。**Pool D combined 2000ep rerun pending** (若做出来,~10 min) — 但基于 071/072/076/079 saturate pattern, 大概率 mean-revert 到 0.90 cluster 真值。
+
+### 7.3 与 071/072/076/079 + 080 saturation 模式合读 (5/5 distill saturate)
+
+| Lane | 设计 | Peak | Δ vs 1750 SOTA |
+|---|---|---|---|
+| 071 Pool A homogeneous | 3-teacher same-family | 0.903 | -0.013 |
+| 072 Pool C cross-axis | reward 多样性 | 0.903 | -0.013 |
+| 076 wide-student | 1.4× capacity | 0.905 | -0.011 |
+| 079 single-teacher | 1 SOTA teacher recursive | 0.914 | -0.002 |
+| **073 Pool D cross-reward** | **3-teacher 3-reward-paths** | **0.909** | **-0.007** |
+
+**5 lane 同时 saturate 0.90-0.91**, 设计变量正交 (teacher count / family / reward axis / student capacity / reward-path diversity), 但都 cap 同一处 → **distill paradigm 自身的极限确认 (5/5 evidence)**。
+
+**§3.4 持平 outcome → §8 Outcome B**: cross-reward diversity 信号 redundant, 3 个 teacher 的 reward path info 在 student-level 表达上其实 redundant。
+
+### 7.4 Raw recap
+
+```
+=== Official Suite Recap (parallel) === (full 12 ckpts above)
+[suite-parallel] total_elapsed=526.9s tasks=12 parallel=7
+```
+
+完整 log: [073_resume_baseline1000.log](../../docs/experiments/artifacts/official-evals/073_resume_baseline1000.log)
+
+### 7.5 Lane 决定
+
+- **Pool D 073 lane 关闭** — cross-reward 3-teacher 距 0.91 ceiling 没突破,与 071/072/076/079 模式一致
+- 不执行 §4 L1/L2 降级 — 5/5 lane 同时 saturate, 不是 hyperparameter / α decay 问题
+- 不做 combined 2000ep rerun (single-shot 0.909 在 statistical tied 区, mean-revert 到 0.90 是更可能的真值, 不会 unlock §3.1)
+- 资源已转 080 / 081 / 082 / 083
+
+
 
 ## 8. 后续发展线 (基于 verdict 的路径图)
 

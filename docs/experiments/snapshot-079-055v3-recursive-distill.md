@@ -64,16 +64,63 @@ If H_079 HIT: **single-teacher 同容量 distill 也能 +1pp** → student capac
 - [ ] Complete + Stage 1 post-eval
 - [ ] Verdict per §3
 
-## 6. Verdict
+## 6. Verdict — §3.3 TIED (单老师 recursive 在 saturated teacher 上 saturate, 2026-04-22 append-only)
 
-_Pending — training ~85% complete, ETA ~20:30 EDT_
+### 6.1 Stage 1 baseline 1000ep (2026-04-22 [00:35 EDT])
+
+- Trial: `079_055v3_recursive_distill_warm031B80_20260421_081705/TeamVsBaselineShapingPPOTrainer_Soccer_0eb3f_00000_0_2026-04-21_08-17-25`
+- Selected ckpts (top 5%+ties+±1, 19 ckpts): 700-720 / 770-790 / 980-1000 / 1050-1070 / 1120-1140 / 1180-1210
+- Eval node: atl1-1-03-017-2-0, port 60405, 740s parallel-7
+
+| ckpt | 1000ep WR | NW-ML |
+|---:|---:|:---:|
+| **🏆 1180** | **0.914** | 914-86 |
+| 1130 | 0.909 | 909-91 |
+| 1210 | 0.904 | 904-96 |
+| 1120 | 0.895 | 895-105 |
+| 1000 | 0.893 | 893-107 |
+| 770 | 0.893 | 893-107 |
+| 1200 | 0.892 | 892-108 |
+| 1140 | 0.891 | 891-109 |
+| 1060 | 0.887 | 887-113 |
+| 720 | 0.885 | 885-115 |
+| 460-1190 | 0.870-0.886 | tail |
+
+**peak = 0.914 @ ckpt-1180, mean(top 6) ~0.901, range [0.870, 0.914]**
+
+### 6.2 严格按 §3 判据
+
+| 阈值 | 实测 | verdict |
+|---|---|---|
+| §3.1 breakthrough ≥ 0.920 | ❌ 0.914 | not met |
+| §3.2 main ≥ 0.915 | ❌ 0.914 (just below) | not met |
+| **§3.3 tied [0.905, 0.915)** | **✅ 0.914 in range** | **TIED teacher (saturation)** |
+| §3.4 regression < 0.900 | ❌ | well above |
+
+**Δ vs teacher 055v2@1000 (0.909) = +0.005pp** — within 1000ep SE (±0.012). 单 sample 1000ep 的真值 CI [0.902, 0.926]; 没 decisive 突破 teacher。
+
+### 6.3 与 071/072/076 saturation 模式合读
+
+| Lane | 设计 | Peak | vs 1750 SOTA |
+|---|---|---|---|
+| 071 Pool A 3-teacher homogeneous | 多 teacher 同家族 | 0.903 | -0.013 |
+| 072 Pool C cross-axis reward | reward 多样性 | 0.903 | -0.013 |
+| 076 wide-student 1.4× capacity | student 容量 | 0.905 | -0.011 |
+| **079 single-teacher recursive** | **1 SOTA teacher** | **0.914** | -0.002 |
+
+4 lane 同时 saturate ~0.90-0.91 → **distill paradigm 已饱和**, 不是 teacher 多样性 / 数量 / student 容量瓶颈。
+
+### 6.4 Raw recap
+
+```
+=== Official Suite Recap (parallel) === (full 19 ckpts above)
+[suite-parallel] total_elapsed=740.6s tasks=19 parallel=7
+```
+
+完整 log: [079_baseline1000.log](../../docs/experiments/artifacts/official-evals/079_baseline1000.log)
 
 ## 7. 后续
 
-若 §3.1 HIT (≥ 0.920):
-- Gen 4: 用 079@peak 作 teacher → 079v4 单老师 recursive continue
-- 验证 Hinton 再现是否无限递归或很快 saturate
-
-若 §3.3 tied:
-- 确认 student capacity 或其他 bottleneck 对 saturated teacher 无效
-- 资源转 snapshot-076 wide-student DIR-A (已在跑)
+- **lane 关闭** — single-teacher recursive 在 saturated SOTA tier 上 marginal gain ≤ noise, 不值得 Gen 4 递归
+- 资源已转 080 (Pool A v2 with 1750 teacher), 081 (orthogonal aggressive reward), 082 (two-stream arch), 083 (per-ray attn)
+- snapshot-075 §4 student capacity 假设确认 — 但 076 的反证表明也不是 capacity 单变量, 是 **distill paradigm itself 的极限**

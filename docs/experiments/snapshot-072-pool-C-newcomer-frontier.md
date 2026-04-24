@@ -241,9 +241,64 @@ TIME_TOTAL_S=43200 EVAL_INTERVAL=10 CHECKPOINT_FREQ=10
 - [ ] 13. Verdict append §7, 严格按 §3 判据
 - [ ] 14. 更新 rank.md + README.md + BACKLOG.md + task-queue-20260421.md
 
-## 7. Verdict
+## 7. Verdict — Outcome B 持平 (cross-axis distill saturate, 2026-04-22 append-only)
 
-_Pending — awaiting 054M_extend + 055v2_extend completions_
+### 7.1 Stage 1 baseline 1000ep (2026-04-22 [00:48 EDT])
+
+- Trial: `072_poolC_cross_axis_distill_warm031B80_20260421_080015/TeamVsBaselineShapingPPOTrainer_Soccer_b5561_00000_0_2026-04-21_08-00-36`
+- Selected ckpts (top 5%+ties+±1, 19 ckpts): 930-980 / 1000-1020 / 1060-1080 / 1170-1230
+- Eval node: atl1-1-03-017-23-0, port 60205, 762s parallel-7
+
+| ckpt | 1000ep WR | NW-ML |
+|---:|---:|:---:|
+| **🏆 1180** | **0.903** | 903-97 |
+| 970 | 0.901 | 901-99 |
+| 1230 | 0.898 | 898-102 |
+| 1080 | 0.897 | 897-103 |
+| 1200 / 1210 | 0.892 | 892-108 |
+| 930 | 0.891 | 891-109 |
+| 1020 / 1220 | 0.890 | 890-110 |
+| 980 | 0.889 | 889-111 |
+| 1000 / 1060 | 0.887 | 887-113 |
+| 940 / 1070 | 0.884 | 884-116 |
+| 950 | 0.884 | 884-116 |
+| 1170 | 0.882 | 882-118 |
+
+**peak = 0.903 @ ckpt-1180, mean(top 6) ~0.898, range [0.873, 0.903]**
+
+### 7.2 严格按 §3 判据
+
+| 阈值 | 实测 | verdict |
+|---|---|---|
+| §3.1 breakthrough ≥ 0.920 | ❌ 0.903 | not met |
+| §3.2 main ≥ 0.915 | ❌ | not met |
+| **Outcome B 持平 [0.900, 0.915)** | **✅ 0.903 in range** | **TIED, cross-axis 没补回 ceiling gap** |
+| Outcome C regression < 0.895 | ❌ 0.903 | not regressed |
+
+**Δ vs prior SOTA 055@1150 (0.907) = -0.004** — within SE。 **Δ vs NEW SOTA 1750 (0.9155) = -0.013** — sub-SOTA。 **Δ vs Pool A 071 (0.903) = 0** — 完全持平,cross-axis reward 多样性 marginal gain ≈ 0。
+
+### 7.3 与 071/076/079 ceiling 模式合读
+
+见 [snapshot-079 §6.3](snapshot-079-055v3-recursive-distill.md#63-与-071072076-saturation-模式合读) 的 4-lane saturation 表。
+
+**Pool C 设计的 cross-axis (mixed reward signals) 假设 dead** — diversity 没补回 student ceiling, 不是 reward-signal redundancy 问题, 是 student-side bottleneck。
+
+### 7.4 Raw recap
+
+```
+=== Official Suite Recap (parallel) === (full 19 ckpts above)
+[suite-parallel] total_elapsed=761.7s tasks=19 parallel=7
+```
+
+完整 log: [072_baseline1000.log](../../docs/experiments/artifacts/official-evals/072_baseline1000.log)
+
+### 7.5 Lane 决定
+
+- **Pool C 072 lane 关闭** — cross-axis 没胜 Pool A homogeneous, 都 saturate 0.91
+- 不执行 §4.2 L1 α sweep — 4 lane 同时 saturate 表明 problem 不在 hyperparameter
+- 资源已转 080 / 081 / 082 / 083 / 073-resume
+
+
 
 ## 8. 后续发展线 (基于 verdict 的路径图)
 

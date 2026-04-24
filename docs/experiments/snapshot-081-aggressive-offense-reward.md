@@ -90,6 +90,79 @@ project 所有 lanes 的 reward signal 都来自 v2 shape 或 v2-derivative:
 
 None — all reward change via env vars。Reuse `train_ray_team_vs_baseline_shaping.py` + `_launch_081_aggressive_offense_scratch.sh`.
 
-## 7. Verdict
+## 7. Verdict — §3.2 main HIT (orthogonal-reward specialist designed range, 2026-04-22 append-only)
 
-_Pending — Stage 1 post-eval ~10h 后_
+### 7.1 Audit
+
+- Trial: `081_aggressive_offense_scratch_20260421_184522/TeamVsBaselineShapingPPOTrainer_Soccer_d3c3b_00000_0_2026-04-21_18-45-42`
+- 125 ckpts (full budget reached) ✅
+- CSV coverage iter 1240 (1 lag, OK) ✅
+- 1 failed inline row @ iter 230 (early, queued as informational note) 🟡
+- stop_reason: TERMINATED ✅
+- Training reward: started -2.5, ended +1.7-1.8 stable ✅
+- **AUDIT PASSED**
+
+### 7.2 Stage 1 baseline 1000ep (2026-04-22 [05:30 EDT])
+
+- Selected ckpts (top 5%+ties+±1, 21 ckpts): 730-750 / 850-870 / 950-980 / 1010-1030 / 1140-1160 / 1200-1240
+- Eval node: 5032911 (atl1-1-03-010-30-0), port 61205, 872s parallel-7
+
+| ckpt | 1000ep WR | NW-ML |
+|---:|---:|:---:|
+| **🏆 970** | **0.826** | 826-174 |
+| 1160 | 0.823 | 823-177 |
+| 1240 | 0.822 | 822-178 |
+| 850 / 1030 | 0.821 | 821-179 |
+| 740 | 0.820 | 820-180 |
+| 960 | 0.819 | 819-181 |
+| 1220 | 0.818 | 818-182 |
+| 1200 | 0.810 | 810-190 |
+| 750 / 860 | 0.803 | 803-197 |
+| 1010 | 0.801 | 801-199 |
+| 1140 / 1150 / 1140 | 0.798 | 798-202 |
+| 870 / 1020 | 0.794 | 794-206 |
+| 980 / 1210 | 0.793 | 793-207 |
+| 950 | 0.790 | 790-210 |
+| 730 | 0.786 | 786-214 |
+| 1230 | 0.785 | 785-215 |
+
+**peak = 0.826 @ ckpt-970, mean(top 6) ~0.821, range [0.785, 0.826]**
+
+### 7.3 严格按 §3 判据
+
+| 阈值 | 实测 | verdict |
+|---|---|---|
+| §3.1 stretch ≥ 0.88 ("aggression ≈ best defense" discovered) | ❌ 0.826 | not met |
+| **§3.2 main [0.75, 0.88) (designed range)** | **✅ 0.826** | **HIT — orthogonal-reward policy works as designed** |
+| §3.3 marginal [0.60, 0.75) | ❌ above | not triggered |
+| §3.4 fail < 0.60 (policy collapse) | ❌ | not triggered |
+
+**Δ vs 1750 SOTA combined 4000ep 0.9155 = -0.090** (sub-SOTA, EXPECTED — 081 不为单挑 baseline 设计)。 **Δ vs 074F ensemble baseline ~0.91 = -0.084** (also expected)。
+
+### 7.4 Why 0.826 baseline is not "sub-frontier failure"
+
+081 was **designed as an orthogonal-reward specialist for ensemble use**, NOT as a standalone SOTA candidate. §0 hypothesis: aggressive-offense reward produces **qualitatively different failure modes** that complement the v2-shape distill family. The 0.91 ceiling problem is "specialist redundancy" (5/5 distill saturation per [snapshot-080 §7.4](snapshot-080-pool-A-v2-with-1750-teacher.md#74-与-071072073076079--080-saturation-模式合读-66-distill)). 081 at 0.826 with **different reward gradient → different policy modes** is the cure, not the standalone WR.
+
+**Real test of 081's value** = DIR-A Wave 2 + DIR-G Wave 2 + DIR-E Wave 2 ensembles after 081 + 103-series specialists are all packaged. Hypothesis: ensembles with 081 added can break 0.91 ceiling because 081's failure modes are non-overlapping with the distill-family members.
+
+### 7.5 Raw recap
+
+```
+=== Official Suite Recap (parallel) === (full 21 ckpts above)
+[suite-parallel] total_elapsed=871.7s tasks=21 parallel=7
+```
+
+完整 log: [081_baseline1000.log](../../docs/experiments/artifacts/official-evals/081_baseline1000.log)
+
+### 7.6 Lane decision (autonomous loop triage)
+
+- **Lane CLOSED with §3.2 main HIT** — 081@970 added to specialist library as **NEAR-GOAL/aggressive-offense specialist**
+- **Stage 2 failure capture: QUEUED (P1)** — orthogonal failure modes worth understanding for selector heuristic design + diversity verification (loss-bucket disjoint from v2-family?)
+- **Stage 3 H2H: QUEUED (P2)** — vs 1750 SOTA单挑 expected loss; vs Wave 2 ensemble would be the meaningful test (do PIPELINE V1 first instead)
+- **Package 081@970 as `agents/v_081_aggressive/`** queued (P1, batch with 103-series after they done)
+- **Wave 2 of DIR-A/E/G** pre-condition: wait for 103A/B/C done (~1h), then batch launch with 081 + 103A + 103B + 103C as new orthogonal specialist quartet
+
+### 7.7 后续
+
+- **§3.2 main HIT path** (snapshot-081 §5): trigger ENSEMBLE TEST `074G = {1750 (0.5) + 081_peak (0.3) + 055 (0.2)}` AND DIR-A/E/G Wave 2 with 081 added — both queued
+- **PIPELINE Phase 7 distill from heterogeneous library** can include 081 as one of the diverse teachers (re-opens distill axis)

@@ -241,9 +241,69 @@ export MAX_ITERATIONS=1250 CHECKPOINT_FREQ=10 EVAL_INTERVAL=10
 # Architecture + shaping 与 055 launcher 一致 (直接拷贝), 见 §2.4
 ```
 
-## 7. Verdict
+## 7. Verdict — §3.4 TIED (homogeneous distill saturate, 2026-04-22 append-only)
 
-_Pending — awaiting 055v2_extend completion (~06:05+3h = ~09:00 EDT) to resolve T2 peak ckpt, then launch + 10-12h train + post-eval pipeline._
+### 7.1 Stage 1 baseline 1000ep (2026-04-22 [00:53 EDT])
+
+- Trial: `071_poolA_homogeneous_distill_warm031B80_20260421_073426/TeamVsBaselineShapingPPOTrainer_Soccer_199de_00000_0_2026-04-21_07-34-47`
+- Selected ckpts (top 5%+ties+±1, 25 ckpts): 460-480 / 670-720 / 830-860 / 970-990 / 1020-1040 / 1100-1160
+- Eval node: atl1-1-03-015-30-0, port 60105, 1037s parallel-7
+
+| ckpt | 1000ep WR | NW-ML |
+|---:|---:|:---:|
+| **🏆 1120** | **0.903** | 903-97 |
+| 860 / 990 | 0.901 | 901-99 |
+| 720 | 0.899 | 899-101 |
+| 670 / 850 | 0.898 | 898-102 |
+| 1150 | 0.897 | 897-103 |
+| 1140 / 1160 / 970 | 0.900 | 900-100 |
+| 840 | 0.894 | 894-106 |
+| 710 | 0.891 | 891-109 |
+| 1100 | 0.889 | 889-111 |
+| 470 / 1040 | 0.886 | 886-114 |
+| 980 | 0.885 | 885-115 |
+
+**peak = 0.903 @ ckpt-1120, mean(top 6) ~0.900, range [0.862, 0.903]**
+
+### 7.2 严格按 §3 判据
+
+| 阈值 | 实测 | verdict |
+|---|---|---|
+| §3.1 main ≥ 0.915 | ❌ 0.903 (-0.012) | not met |
+| §3.2 stretch ≥ 0.920 | ❌ | not met |
+| §3.3 strong tied [0.910, 0.915) | ❌ 0.903 below | not met |
+| **§3.4 marginal tied [0.895, 0.910)** | **✅ 0.903 in range** | **TIED, ceiling at 0.91** |
+| §3.5 regression < 0.895 | ❌ | not regressed |
+
+**Δ vs prior SOTA 055@1150 (0.907) = -0.004** — within SE。 **Δ vs NEW SOTA 1750 (0.9155) = -0.013** — sub-SOTA。
+
+### 7.3 §8 outcome 对照
+
+| Pool A 结果 | Pool B 结果 | 结论 |
+|---|---|---|
+| ~~Breakthrough~~ | — | not met |
+| **Tied (0.903)** | (Pool B 见 snapshot-070, tied 0.892) | **distill 轴在 0.91 saturate** — 与 072 / 076 / 079 一致 |
+
+### 7.4 与 071/072/076/079 ceiling 模式合读
+
+见 [snapshot-079 §6.3](snapshot-079-055v3-recursive-distill.md#63-与-071072076-saturation-模式合读) — 4 lane 同时 saturate 0.90-0.91 → distill paradigm itself 已饱和, 不是 teacher 数量/多样性 / student 容量瓶颈。
+
+### 7.5 Raw recap
+
+```
+=== Official Suite Recap (parallel) === (full 25 ckpts above)
+[suite-parallel] total_elapsed=1037.7s tasks=25 parallel=7
+```
+
+完整 log: [071_baseline1000.log](../../docs/experiments/artifacts/official-evals/071_baseline1000.log)
+
+### 7.6 Lane 决定
+
+- **Pool A 071 lane 关闭** — 同家族 homogeneous distill 没 break ceiling
+- 080 (Pool A v2 with 1750 teacher) 仍在跑;若也 saturate 0.91 → confirm distill paradigm 整体限于 ~0.91
+- 资源已转 080 / 081 / 082 / 083 / 073-resume
+
+
 
 ## 8. 后续路径 (基于 verdict)
 

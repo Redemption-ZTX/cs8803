@@ -204,9 +204,77 @@ Param count rough:
 
 ---
 
-## 7. Verdict
+## 7. Verdict — §3.4 TIED (capacity 不是 binding constraint, 2026-04-22 append-only)
 
-_Pending_
+### 7.1 Stage 1 baseline 1000ep (2026-04-22 [01:00 EDT])
+
+- Trial: `076_wide_student_distill_scratch_20260421_083310/TeamVsBaselineShapingPPOTrainer_Soccer_4ebd4_00000_0_2026-04-21_08-33-32`
+- Architecture: encoder 384,384 + cross-attn dim 96 (vs default 256,256 / dim 64) — **~1.4× capacity**
+- Selected ckpts (top 5%+ties+±1, 33 ckpts): 320-340 / 620-700 / 760-790 / 880-900 / 960-1010 / 1070-1110 / 1160-1180
+- Eval node: atl1-1-03-012-3-0, port 60305, 1295s parallel-7
+
+| ckpt | 1000ep WR | NW-ML |
+|---:|---:|:---:|
+| **🏆 1000** | **0.905** | 905-95 |
+| 770 | 0.899 | 899-101 |
+| 1110 | 0.898 | 898-102 |
+| 650 | 0.897 | 897-103 |
+| 960 | 0.896 | 896-104 |
+| 790 / 1160 | 0.890 | 890-110 |
+| 880 / 990 | 0.889 | 889-111 |
+| 620 / 660 | 0.888 | 888-112 |
+| 700 / 710 | 0.887 | 887-113 |
+| 760 | 0.884 | 884-116 |
+| 780 / 980 / 1090 / 890 | 0.883 | 883-117 |
+
+**peak = 0.905 @ ckpt-1000, mean(top 6) ~0.899, range [0.849, 0.905]**
+
+### 7.2 严格按 §3 判据
+
+| 阈值 | 实测 | verdict |
+|---|---|---|
+| §3.1 stretch ≥ 0.920 | ❌ 0.905 | not met |
+| §3.2 main ≥ 0.911 | ❌ 0.905 | not met |
+| §3.3 marginal [0.907, 0.911) | ❌ 0.905 just below | not met |
+| **§3.4 tied [0.900, 0.907)** | **✅ 0.905 in range** | **TIED, capacity NOT the bottleneck** |
+| §3.5 regression < 0.900 | ❌ | within ceiling cluster |
+
+**Δ vs 055 SOTA recipe (0.907) = -0.002** — 完全 within SE。 **Δ vs NEW SOTA 1750 (0.9155) = -0.011** — sub-SOTA。
+
+### 7.3 关键 lesson — DIR-A 假设否定
+
+**snapshot-075 §4 / 本 snapshot §0.3 的 "student capacity bound" 假设 FALSE**:
+- 1.4× capacity wider student 训了 1250 iter, peak 0.905
+- 与 0.46M 默认 student 同 paradigm (071/072/079) peak 0.903-0.914 几乎相同
+- → **distill paradigm 整体卡在 ~0.91, 不是 student 容量, 不是 teacher 数量, 不是 reward 多样性**
+
+可能的真 bottleneck (待 080/081 等结果分清):
+- **PPO + Hinton KL 自身的 mode collapse**: KL 让 student 收敛到 teacher 的 mode 平均, 失去 PPO 探索 marginal
+- **Teacher 池不可避免地共用 baseline-targeted policy distribution**: 即使 reward 不同 (072), 都是 v2-derived ⇒ teachers' joint action distribution 高度相关
+- **Static teacher 不能给 student 当前 state-distribution 上的 fresh signal**: DAGGER (078) 才能解此, 但 078 deferred
+
+### 7.4 与 071/072/079 ceiling 模式合读
+
+见 [snapshot-079 §6.3](snapshot-079-055v3-recursive-distill.md#63-与-071072076-saturation-模式合读)。
+
+**4 lane 同时 saturate 0.90-0.91**, 设计变量正交 (teacher count / teacher diversity / reward axis / student capacity), 但都 cap 同一处 → **distill paradigm 自身的极限**。
+
+### 7.5 Raw recap
+
+```
+=== Official Suite Recap (parallel) === (full 33 ckpts above)
+[suite-parallel] total_elapsed=1295.4s tasks=33 parallel=7
+```
+
+完整 log: [076_baseline1000.log](../../docs/experiments/artifacts/official-evals/076_baseline1000.log)
+
+### 7.6 Lane 决定
+
+- **DIR-A wide-student 路径关闭** — capacity 不 binding
+- 不执行 §8 后续 A/B/C — 都假设 capacity 是 binding, 实测否定
+- 资源已转: 081 (orthogonal aggressive reward, **不依赖 distill paradigm**), 082/083 (architecture axis), 080 (Pool A v2 用更强 teacher 看是否能撬动 +0.005 marginal), 073-resume
+
+
 
 ---
 

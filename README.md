@@ -1,26 +1,94 @@
+<div align="center">
+
 # CS8803 DRL — Soccer-Twos
 
-CS8803 深度强化学习课程 Final Project。基于 [soccer-twos-starter](https://github.com/mdas64/soccer-twos-starter) 训练 2v2 足球多智能体。
+**[English](README.md)** &nbsp;·&nbsp; [简体中文](README_zh.md)
 
-## 快速开始
+CS8803 Deep Reinforcement Learning final project — a 2v2 soccer multi-agent
+trained on top of the [soccer-twos starter kit](https://github.com/mdas64/soccer-twos-starter).
+
+![Python](https://img.shields.io/badge/Python-3.8-3776AB?logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
+![Ray RLlib](https://img.shields.io/badge/Ray%20RLlib-1.4.0-028CF0?logo=ray&logoColor=white)
+![Unity ML-Agents](https://img.shields.io/badge/Unity%20ML--Agents-0.27.0-000000?logo=unity&logoColor=white)
+![CUDA](https://img.shields.io/badge/CUDA-H100-76B900?logo=nvidia&logoColor=white)
+![LaTeX](https://img.shields.io/badge/Report-Tectonic-008080?logo=latex&logoColor=white)
+![Autograder](https://img.shields.io/badge/Autograder-55%2F55-2EA44F)
+
+</div>
+
+---
+
+## 📄 Final Report
+
+**[Recursive Multi-Teacher Distillation for 2v2 Soccer](report/main.pdf)** &nbsp;·&nbsp; Weiyi Sun, Tianxiang Zhao &nbsp;·&nbsp; CS8803 DRL · Spring 2026
+
+<div align="center">
+<a href="report/main.pdf">
+  <img src="report/main_preview_p1.png" alt="Report first page preview" width="540">
+</a>
+</div>
+
+### Headline result (autograder)
+
+| Opponent | Matches won | Goals for / against | Goal ratio | Score |
+|---|---:|---:|---:|---:|
+| Random | **10 / 10** | 431 / 2 | 215.5 : 1 | 25 / 25 |
+| Baseline (`ceia`) | **10 / 10** | 254 / 27 | 9.4 : 1 | 25 / 25 |
+| TA competitive agent | **10 / 10** | 209 / 10 | 20.9 : 1 | 5 / 5 |
+| | | | **Total** | **55 / 55** |
+
+The submitted policy `055v2_extend@1750` is a single-forward-pass agent
+produced by a 3-stage recursive distillation pipeline (Born-Again-Networks
+style):
+
+1. **Stage 1** — distill a 3-teacher deploy-time ensemble (`031B + 045A + 051A`) into a fresh student.
+2. **Stage 2** — refresh the teacher pool with the Stage-1 student plus an LR-diverse variant; distill again.
+3. **Stage 3** — extend training past the original iter-1250 horizon to iter 2000, selecting the lowest-variance checkpoint.
+
+A 9000-episode audit on our own evaluator confirms `0.907 ± 0.004` WR vs. the
+Baseline agent (CI `[0.899, 0.914]`).
+
+Submission package: [`submission/CS8803DRL_AGENT/`](submission/CS8803DRL_AGENT/) &nbsp;·&nbsp; report build instructions: [`report/README.md`](report/README.md)
+
+---
+
+## 🛠 Tech stack
+
+| Layer | Pinned version | Notes |
+|---|---|---|
+| Python | **3.8** (strict) | Required by Ray RLlib 1.4 / ML-Agents 0.27 |
+| PyTorch | 2.x | All training scripts default to PyTorch |
+| Ray RLlib | **1.4.0** (strict) | Single-team PPO + multi-agent backends |
+| Unity ML-Agents | 0.27.0 | Runs the Soccer-Twos binary headless |
+| `protobuf` | **3.20.3** (strict) | Compatibility pin |
+| `pydantic` | **1.10.13** (strict) | Compatibility pin |
+| Compute | NVIDIA H100 (PACE) | All long runs go through SLURM |
+| Report | Tectonic + HTML/SVG | LaTeX `main.pdf` + headless-Chrome figure rendering |
+
+> Do **not** upgrade Python or Ray — both are upstream-pinned compatibility requirements.
+
+---
+
+## Quick start
 
 ```bash
-# 一键安装（推荐）
+# One-line install (recommended)
 bash scripts/setup/setup.sh
 
-# 或手动安装，见 CLAUDE.md 的 Setup 章节
+# For manual installation, see the Setup section in CLAUDE.md.
 ```
 
 ```bash
-# H100 / Hopper 节点推荐：在现有 soccertwos 环境上补一个 GPU overlay
+# H100 / Hopper nodes: layer a GPU overlay on top of the existing soccertwos env
 bash scripts/setup/setup_h100_overlay.sh
 ```
 
 ```bash
-# 看随机 agent 跑比赛
+# Watch a random agent play
 python examples/example_random_players.py
 
-# 训练
+# Train
 python -m cs8803drl.training.train_ray_base_team_vs_random
 python -m cs8803drl.training.train_ray_base_team_vs_baseline
 python -m cs8803drl.training.train_ray_base_ma_teams
@@ -32,7 +100,7 @@ python -m cs8803drl.training.train_ray_shared_policy_role_token
 python -m cs8803drl.training.train_ray_selfplay
 python -m cs8803drl.training.train_ray_curriculum
 
-# 评估
+# Evaluate
 python -m soccer_twos.watch -m example_player_agent
 python -m soccer_twos.watch -m cs8803drl.deployment.trained_team_ray_agent
 python -m soccer_twos.watch -m cs8803drl.deployment.trained_ma_team_agent
@@ -42,65 +110,68 @@ python -m cs8803drl.evaluation.evaluate_matches -m1 <agent_module> -m2 ceia_base
 python scripts/eval/evaluate_official_suite.py --team0-module cs8803drl.deployment.trained_ray_agent --opponents baseline -n 200 --checkpoint <checkpoint_path>
 ```
 
-## 项目结构
+## Project layout
 
 ```
-├── CLAUDE.md                            # AI 协作入口（行为规则 + 架构摘要 + 保护等级）
-├── CHANGELOG.md                         # 版本记录
-├── curriculum.yaml                      # 课程学习任务配置
-├── requirements.txt                     # 依赖规格
-├── sitecustomize.py                     # Python 兼容性补丁
+├── CLAUDE.md                            AI-collaboration entry point (rules + architecture summary + protection levels)
+├── CHANGELOG.md                         Version log
+├── curriculum.yaml                      Curriculum-learning task config
+├── requirements.txt                     Dependency spec
+├── sitecustomize.py                     Python compatibility shim
 │
-├── cs8803drl/                           # 主代码包
-│   ├── core/                            # 运行时核心：env、checkpoint、reward/info
-│   ├── training/                        # 训练入口：所有 train_ray_* 主线与分支
-│   ├── deployment/                      # 评估/部署 agent wrapper
-│   ├── evaluation/                      # 本地评估入口
-│   └── branches/                        # 实验辅助模块（role/lstm/summary/cc 等）
+├── cs8803drl/                           Main package
+│   ├── core/                            Runtime core: env, checkpoint, reward / info
+│   ├── training/                        Training entrypoints (all train_ray_* variants)
+│   ├── deployment/                      Deploy-time agent wrappers
+│   ├── evaluation/                      Local evaluation entrypoints
+│   └── branches/                        Experiment helpers (role / lstm / summary / cc / …)
 │
-├── scripts/                             # 结构化脚本层
-│   ├── setup/                           # 环境与 overlay 安装
-│   ├── eval/                            # 官方评估、扫描、回填、legacy checkpoint 对战
-│   ├── tools/                           # 构建与工具脚本
-│   └── batch/                           # SLURM / 直接运行 batch
-│       ├── starter/                     # starter 风格入口
-│       ├── base/                        # 从零开始的基础模型训练
-│       ├── adaptation/                  # 基于 base checkpoint 的下游适配
-│       ├── experiments/                 # 实验分支脚本
-│       └── ...                          # 其余按职责分组
+├── scripts/                             Structured script layer
+│   ├── setup/                           Environment + GPU-overlay setup
+│   ├── eval/                            Official evaluation, sweeps, backfills, legacy ckpt match-ups
+│   ├── tools/                           Build / utility scripts
+│   └── batch/                           SLURM / direct batch jobs
+│       ├── starter/                     Starter-style entrypoints
+│       ├── base/                        From-scratch base-model training
+│       ├── adaptation/                  Downstream adaptation on top of a base ckpt
+│       ├── experiments/                 Branch experiment scripts
+│       └── …                            Other categories grouped by responsibility
 │
-├── agents/                              # submission-ready agent 模块与模板
-├── ceia_baseline_agent/                 # 预训练基线 agent
-├── example_player_agent/                # 上游模板：单玩家 agent
-├── example_team_agent/                  # 上游模板：团队 agent
-├── examples/                            # 上游示例脚本（归档参考）
-└── docs/                                # 项目文档
+├── agents/                              Submission-ready agent modules + templates
+├── ceia_baseline_agent/                 Pre-trained baseline opponent
+├── example_player_agent/                Upstream template: single-player agent
+├── example_team_agent/                  Upstream template: team agent
+├── examples/                            Upstream example scripts (archived for reference)
+├── report/                              Final report — LaTeX source + figures + main.pdf
+├── submission/                          Course submission package (CS8803DRL_AGENT.zip + unzipped dir)
+└── docs/                                Project documentation
 ```
 
-说明：
+Notes:
 
-- 运行时代码已经从根目录收敛到 `cs8803drl/` 分层包里；根目录只保留项目级元文件、配置和少量兼容入口。
-- 目录治理规则见 [docs/management/directory-governance.md](docs/management/directory-governance.md)。
-- 工具脚本职责见 [scripts/README.md](scripts/README.md)。
+- Runtime code has been consolidated into the `cs8803drl/` package; the project
+  root keeps only meta-files, configs, and a few legacy compat shims.
+- Directory-governance rules: see [docs/management/directory-governance.md](docs/management/directory-governance.md).
+- Script-layer responsibilities: see [scripts/README.md](scripts/README.md).
 
-## 文档
+## Documentation
 
-详见 [docs/README.md](docs/README.md) — 文档中心。
+Documentation index: [docs/README.md](docs/README.md).
 
-| 文档 | 说明 |
+| Document | Purpose |
 |------|------|
-| [CLAUDE.md](CLAUDE.md) | AI 协作入口，项目架构与约束 |
-| [架构总览](docs/architecture/overview.md) | 上游差异、目录结构、前任工作 |
-| [代码审计](docs/architecture/code-audit-000.md) | 接手时逐模块分析、问题、改进方向 |
-| [工程规范](docs/architecture/engineering-standards.md) | 环境搭建、commit 流程、实验迭代、环境变量速查 |
-| [目录治理](docs/management/directory-governance.md) | 根目录保留规则、归档规则、整理边界 |
-| [清理日志](docs/management/cleanup-log.md) | 磁盘清理记录、删除内容与配额变化 |
-| [阶段计划](docs/plan/plan-002-il-mappo-dual-mainline.md) | 当前主线：IL / BC + baseline exploitation + MAPPO 公平对照 |
-| [实验记录](docs/experiments/README.md) | 实验索引与 snapshot |
-| [作业要求](docs/references/Final%20Project%20Instructions%20Document.md) | 评分标准（Markdown 版） |
+| [CLAUDE.md](CLAUDE.md) | AI-collaboration entry: project architecture and constraints |
+| [Architecture overview](docs/architecture/overview.md) | Upstream diff, directory structure, predecessor work |
+| [Code audit](docs/architecture/code-audit-000.md) | Module-by-module analysis at hand-off, issues, improvement targets |
+| [Engineering standards](docs/architecture/engineering-standards.md) | Setup, commit flow, experiment iteration, env-var reference |
+| [Directory governance](docs/management/directory-governance.md) | Root-retention rules, archive rules, reorg boundaries |
+| [Cleanup log](docs/management/cleanup-log.md) | Disk-cleanup history, removed content, quota deltas |
+| [Phase plan](docs/plan/plan-002-il-mappo-dual-mainline.md) | Active mainline: IL / BC + baseline exploitation + MAPPO fair comparison |
+| [Experiment log](docs/experiments/README.md) | Experiment index and snapshots |
+| [Assignment spec](docs/references/Final%20Project%20Instructions%20Document.md) | Grading rubric (Markdown rendering) |
 
-## 上游
+## Upstream
 
-- 课程指定 starter: https://github.com/mdas64/soccer-twos-starter
-- 环境源码: https://github.com/bryanoliveira/soccer-twos-env
-- 原版 README: [docs/references/upstream-README.md](docs/references/upstream-README.md)
+- Course-provided starter: https://github.com/mdas64/soccer-twos-starter
+- Environment source: https://github.com/bryanoliveira/soccer-twos-env
+- Original upstream README: [docs/references/upstream-README.md](docs/references/upstream-README.md)
