@@ -38,6 +38,15 @@ from cs8803drl.branches.team_siamese_distill import (
     register_team_siamese_distill_model,
     register_team_siamese_ensemble_distill_model,
 )
+from cs8803drl.branches.team_siamese_two_stream import (
+    register_team_siamese_two_stream_model,
+)
+from cs8803drl.branches.team_siamese_per_ray import (
+    register_team_siamese_per_ray_model,
+)
+from cs8803drl.branches.team_siamese_vdn import (
+    register_team_siamese_vdn_model,
+)
 from cs8803drl.branches.team_action_aux import register_team_action_aux_model
 from cs8803drl.core.checkpoint_utils import load_policy_weights
 
@@ -154,6 +163,9 @@ class TeamRayAgent(AgentInterface):
         register_team_siamese_transformer_min_model()
         register_team_siamese_distill_model()
         register_team_siamese_ensemble_distill_model()
+        register_team_siamese_two_stream_model()
+        register_team_siamese_per_ray_model()
+        register_team_siamese_vdn_model()
         register_team_action_aux_model()
         tune.registry.register_env(
             _DUMMY_ENV_NAME,

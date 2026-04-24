@@ -30,6 +30,7 @@ from soccer_twos import AgentInterface
 from cs8803drl.core.checkpoint_utils import infer_action_dim_from_checkpoint, load_policy_weights
 from cs8803drl.branches.shared_central_critic import SHARED_CC_POLICY_ID, build_cc_obs_space, register_shared_cc_model
 from cs8803drl.branches.teammate_aux_head import register_shared_cc_teammate_aux_model
+from cs8803drl.branches.per_agent_distill import register_per_agent_distill_model
 
 try:
     from soccer_twos.wrappers import ActionFlattener
@@ -170,6 +171,7 @@ class SharedCCAgent(AgentInterface):
 
         register_shared_cc_model()
         register_shared_cc_teammate_aux_model()
+        register_per_agent_distill_model()
         tune.registry.register_env(
             _DUMMY_ENV_NAME, lambda *_: _DummyMultiAgentEnv(cc_obs_space, obs_space, act_space)
         )

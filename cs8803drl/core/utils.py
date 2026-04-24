@@ -147,6 +147,8 @@ class RewardShapingWrapper(gym.Wrapper):
         event_shot_reward: float = 0.0,
         event_tackle_reward: float = 0.0,
         event_clearance_reward: float = 0.0,
+        event_pass_reward: float = 0.0,
+        pass_min_ball_speed: float = 1.0,
         event_cooldown_steps: int = 10,
         shot_x_threshold: float = 10.0,
         shot_ball_dx_min: float = 0.5,
@@ -197,6 +199,10 @@ class RewardShapingWrapper(gym.Wrapper):
         self._event_shot_reward = float(event_shot_reward)
         self._event_tackle_reward = float(event_tackle_reward)
         self._event_clearance_reward = float(event_clearance_reward)
+        # Stone Layered Phase 2 (snapshot-107) — pass-decision specialist
+        self._event_pass_reward = float(event_pass_reward)
+        self._pass_min_ball_speed = float(pass_min_ball_speed)
+        self._prev_possessing_agent: Optional[int] = None
         self._event_cooldown_steps = int(event_cooldown_steps)
         self._shot_x_threshold = float(shot_x_threshold)
         self._shot_ball_dx_min = float(shot_ball_dx_min)
@@ -254,6 +260,7 @@ class RewardShapingWrapper(gym.Wrapper):
         self._prev_ball_x = None
         self._prev_ball_pos = None
         self._prev_possessing_team = None
+        self._prev_possessing_agent = None  # snapshot-107 pass detection
         self._prev_team_coord_total = None
         self._event_last_trigger_steps = {}
         self._episode_steps = 0
@@ -263,6 +270,7 @@ class RewardShapingWrapper(gym.Wrapper):
         self._prev_ball_x = None
         self._prev_ball_pos = None
         self._prev_possessing_team = None
+        self._prev_possessing_agent = None  # snapshot-107 pass detection
         self._prev_team_coord_total = None
         self._event_last_trigger_steps = {}
         self._episode_steps = 0
@@ -482,6 +490,10 @@ class RewardShapingWrapper(gym.Wrapper):
             event_shot_reward=self._event_shot_reward,
             event_tackle_reward=self._event_tackle_reward,
             event_clearance_reward=self._event_clearance_reward,
+            event_pass_reward=self._event_pass_reward,
+            pass_min_ball_speed=self._pass_min_ball_speed,
+            possessing_agent=shaping_debug.get("closest_agent_id"),
+            prev_possessing_agent=self._prev_possessing_agent,
             event_cooldown_steps=self._event_cooldown_steps,
             shot_x_threshold=self._shot_x_threshold,
             shot_ball_dx_min=self._shot_ball_dx_min,
@@ -563,6 +575,12 @@ class RewardShapingWrapper(gym.Wrapper):
         possessing_team = shaping_debug.get("possessing_team")
         if bool(shaping_debug.get("possession_confirmed")) and possessing_team in (0, 1):
             self._prev_possessing_team = int(possessing_team)
+        # Track per-agent possession for pass detection (snapshot-107).
+        # Note: we update closest_agent every step regardless of confirmed possession,
+        # so pass detection works on closest-agent transition (matches "ball in flight" semantics).
+        closest_agent_id = shaping_debug.get("closest_agent_id")
+        if closest_agent_id is not None:
+            self._prev_possessing_agent = int(closest_agent_id)
 
         if self._is_scalar_reward(reward):
             scalar_delta += aggregate_scalar_shaping(
@@ -951,6 +969,20 @@ class _EpisodeOpponentPoolPolicy:
             "y",
             "on",
         }
+        # BUG-1 fix (2026-04-22): _EpisodeOpponentPoolPolicy itself must trigger
+        # the per-episode reset hook on TeamVsPolicyWrapper so reset_episode()
+        # actually fires. Previously the hook was only installed by
+        # FrozenTeamPolicy.__init__ → if a lane uses only baseline+random pool
+        # (no FrozenTeamPolicy), opponent locked at first sample for entire
+        # worker lifetime. See feedback_opponent_pool_no_resample.md.
+        try:
+            from cs8803drl.core.frozen_team_policy import FrozenTeamPolicy
+            FrozenTeamPolicy.install_reset_hook()
+        except Exception:
+            # Non-fatal — leaves us in pre-fix state but prints nothing on import
+            # cycles. Install will retry next time _EpisodeOpponentPoolPolicy
+            # is constructed.
+            pass
 
     def reset_episode(self):
         self._current_index = int(np.random.choice(len(self._entries), p=self._weights))
@@ -1240,6 +1272,26 @@ def create_rllib_env(env_config: dict = {}):
             env = RewardShapingWrapper(env, **shaping_cfg)
         else:
             env = RewardShapingWrapper(env)
+
+    # snapshot-110: state/action bottleneck wrappers per Wang/Stone/Hanna 2025.
+    # Read OBS_BOTTLENECK_* and ACTION_BOTTLENECK_* env vars to gate.
+    # Applied AFTER RewardShapingWrapper so reward sees full env state but the
+    # POLICY sees masked obs and outputs constrained actions.
+    try:
+        from cs8803drl.branches.bottleneck_wrappers import (
+            ObsBottleneckWrapper,
+            ActionBottleneckWrapper,
+            parse_obs_bottleneck_env_vars,
+            parse_action_bottleneck_env_vars,
+        )
+        obs_bn_cfg = parse_obs_bottleneck_env_vars()
+        if obs_bn_cfg is not None:
+            env = ObsBottleneckWrapper(env, **obs_bn_cfg)
+        action_bn_cfg = parse_action_bottleneck_env_vars()
+        if action_bn_cfg is not None:
+            env = ActionBottleneckWrapper(env, **action_bn_cfg)
+    except ImportError:
+        pass  # snapshot-110 wrappers not available in this checkout
 
     # snapshot-036 Path C: optional learned-reward shaping on top of v2 shaping.
     # Applied AFTER RewardShapingWrapper so the learned signal is additive to any

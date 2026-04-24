@@ -12,6 +12,12 @@ from cs8803drl.branches.obs_summary import RAY_BLOCK_SIZE, RAY_TYPE_DIM
 
 ATTACK_SCENARIO = "attack_expert"
 DEFENSE_SCENARIO = "defense_expert"
+# 103-series sub-task scenarios (Stone DIR-A Wave 3 / SPL 2024 sub-behavior decomposition)
+INTERCEPTOR_SCENARIO = "interceptor_subtask"   # 103A: opp near ball + my agent close → BALL_DUEL specialist
+DEFENDER_SCENARIO = "defender_subtask"         # 103B: ball own half + teammate has ball → POSITIONING specialist
+DRIBBLE_SCENARIO = "dribble_subtask"           # 103C: mid field neutral + I have ball → MID-FIELD-DRIBBLE specialist
+# Stone Layered Phase 2 — pass-decision specialist (snapshot-107)
+PASS_SUBTASK_SCENARIO = "pass_subtask"         # 104A: ball with one teammate + other teammate 6-12m away + opp pressuring → PASS DECISION specialist
 
 # Empirically identified from controlled side-channel probes:
 # type 0 reacts strongly when the ball is placed directly in front of the agent.
@@ -28,9 +34,19 @@ def _sample_position(x_range, y_range):
     return [_sample_uniform(x_range), _sample_uniform(y_range)]
 
 
+_SUPPORTED_SCENARIOS = {
+    ATTACK_SCENARIO,
+    DEFENSE_SCENARIO,
+    INTERCEPTOR_SCENARIO,
+    DEFENDER_SCENARIO,
+    DRIBBLE_SCENARIO,
+    PASS_SUBTASK_SCENARIO,
+}
+
+
 def sample_expert_scenario(mode: str) -> Dict[str, Any]:
     mode = (mode or "").strip().lower()
-    if mode not in {ATTACK_SCENARIO, DEFENSE_SCENARIO}:
+    if mode not in _SUPPORTED_SCENARIOS:
         raise ValueError(f"Unknown scenario mode: {mode!r}")
 
     if mode == ATTACK_SCENARIO:
@@ -42,7 +58,7 @@ def sample_expert_scenario(mode: str) -> Dict[str, Any]:
         ]
         opp2 = _sample_position((1.0, 7.0), (-2.5, 2.5))
         opp3 = _sample_position((4.0, 10.0), (-2.5, 2.5))
-    else:
+    elif mode == DEFENSE_SCENARIO:
         # Put the controlled player under pressure near the home goal so that
         # "good" behavior means recovering and clearing the ball to the right.
         player0 = _sample_position((-15.5, -12.5), (-2.0, 2.0))
@@ -56,6 +72,73 @@ def sample_expert_scenario(mode: str) -> Dict[str, Any]:
             ball[1] + _sample_uniform((-1.0, 1.0)),
         ]
         opp3 = _sample_position((-2.0, 4.0), (-2.5, 2.5))
+    elif mode == INTERCEPTOR_SCENARIO:
+        # 103A: BALL DUEL specialist. Ball at midfield neutral, opponent close
+        # to ball, our agent close-by ready to challenge. The "good" behavior is
+        # tackle / steal / clear toward opponent's half before opp can advance.
+        ball = _sample_position((-3.0, 3.0), (-3.0, 3.0))
+        opp2 = [ball[0] + _sample_uniform((-0.6, 0.6)), ball[1] + _sample_uniform((-0.6, 0.6))]
+        player0 = [ball[0] + _sample_uniform((-1.5, -0.5)), ball[1] + _sample_uniform((-1.0, 1.0))]
+        player1 = _sample_position((-9.0, -4.0), (-3.0, 3.0))
+        opp3 = _sample_position((4.0, 10.0), (-3.0, 3.0))
+    elif mode == DEFENDER_SCENARIO:
+        # 103B: POSITIONING specialist. Ball on our half with our teammate
+        # carrying it; the controlled player should maintain support spacing
+        # and intercept opp transitions, NOT charge the ball. Good behavior:
+        # stay 4-6m from teammate, between teammate and own goal.
+        player1 = _sample_position((-10.0, -5.0), (-3.5, 3.5))  # teammate has ball
+        ball = [player1[0] + _sample_uniform((-0.4, 0.4)), player1[1] + _sample_uniform((-0.4, 0.4))]
+        player0 = _sample_position((-13.5, -10.0), (-3.5, 3.5))  # controlled = defender behind
+        opp2 = _sample_position((-2.0, 4.0), (-3.5, 3.5))
+        opp3 = _sample_position((2.0, 8.0), (-3.5, 3.5))
+    elif mode == PASS_SUBTASK_SCENARIO:
+        # 104A Stone Layered Phase 2: PASS-DECISION specialist.
+        # Setup: ball with player0 (ball-holder), player1 (teammate) 6-12m away,
+        # opp 70% close to ball-holder (force pass) / 30% neutral spacing (allow dribble).
+        # Good behavior: pass to teammate when opp pressures + teammate is open.
+        player0 = _sample_position((-12.0, -2.0), (-3.0, 3.0))
+        # Teammate at variable distance + angle (mostly forward-spread)
+        distance = _sample_uniform((6.0, 12.0))
+        angle = _sample_uniform((-1.5, 1.5))
+        player1_x = player0[0] + distance * math.cos(angle)
+        player1_y = player0[1] + distance * math.sin(angle)
+        # Clamp to field
+        player1_x = max(-15.0, min(10.0, player1_x))
+        player1_y = max(-3.5, min(3.5, player1_y))
+        player1 = [player1_x, player1_y]
+        # Ball at player0 (close to body)
+        ball = [
+            player0[0] + _sample_uniform((-0.6, 0.6)),
+            player0[1] + _sample_uniform((-0.4, 0.4)),
+        ]
+        # Opp positioning: 70% close to ball-holder, 30% neutral
+        if random.random() < 0.7:
+            # Opp2 close to ball-holder (force pass)
+            opp2 = [
+                player0[0] + _sample_uniform((1.0, 3.0)),
+                player0[1] + _sample_uniform((-1.5, 1.5)),
+            ]
+            # Opp3 between teammates (covering pass lane partially)
+            opp3 = [
+                (player0[0] + player1[0]) / 2.0 + _sample_uniform((-2.0, 2.0)),
+                (player0[1] + player1[1]) / 2.0 + _sample_uniform((-2.0, 2.0)),
+            ]
+        else:
+            # Neutral spacing — agent can dribble or pass
+            opp2 = _sample_position((2.0, 8.0), (-3.0, 3.0))
+            opp3 = _sample_position((4.0, 10.0), (-3.0, 3.0))
+    elif mode == DRIBBLE_SCENARIO:
+        # 103C: MID-FIELD-DRIBBLE specialist. Mid field neutral, controlled
+        # player close to ball with no immediate opp pressure. Good behavior:
+        # dribble forward, hold possession, do NOT shoot prematurely. Saves
+        # shooting decisions for the dedicated NEAR-GOAL specialist (081).
+        ball = _sample_position((-4.0, 4.0), (-3.0, 3.0))
+        player0 = [ball[0] + _sample_uniform((-1.0, -0.3)), ball[1] + _sample_uniform((-1.0, 1.0))]
+        player1 = _sample_position((-9.0, -4.0), (-3.0, 3.0))
+        opp2 = _sample_position((4.0, 9.0), (-3.0, 3.0))
+        opp3 = _sample_position((6.0, 12.0), (-3.0, 3.0))
+    else:
+        raise ValueError(f"Unhandled scenario mode: {mode!r}")
 
     return {
         "players_states": {

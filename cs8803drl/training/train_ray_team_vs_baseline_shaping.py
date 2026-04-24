@@ -53,6 +53,18 @@ from cs8803drl.branches.team_siamese_distill import (
     register_team_siamese_distill_model,
     register_team_siamese_ensemble_distill_model,
 )
+from cs8803drl.branches.team_siamese_two_stream import (
+    TEAM_SIAMESE_TWO_STREAM_MODEL_NAME,
+    register_team_siamese_two_stream_model,
+)
+from cs8803drl.branches.team_siamese_per_ray import (
+    TEAM_SIAMESE_PER_RAY_ATTN_MODEL_NAME,
+    register_team_siamese_per_ray_model,
+)
+from cs8803drl.branches.team_siamese_vdn import (
+    TEAM_SIAMESE_VDN_MODEL_NAME,
+    register_team_siamese_vdn_model,
+)
 from cs8803drl.branches.team_action_aux import (
     TEAM_ACTION_AUX_MODEL_NAME,
     TEAM_ACTION_AUX_SYMMETRIC_MODEL_NAME,
@@ -690,10 +702,34 @@ def main():
     team_siamese_encoder = _env_bool("TEAM_SIAMESE_ENCODER", False)
     team_siamese_encoder_hiddens = _env_layers("TEAM_SIAMESE_ENCODER_HIDDENS", (256, 256))
     team_siamese_merge_hiddens = _env_layers("TEAM_SIAMESE_MERGE_HIDDENS", (256, 128))
+    # 082 hierarchical two-stream encoder (snapshot-082): splits per-agent obs
+    # into self_slice (tail) + env_slice (head) processed by separate encoders
+    # before the 031B cross-attention pipeline.
+    team_siamese_two_stream = _env_bool("TEAM_SIAMESE_TWO_STREAM", False)
+    team_siamese_self_hiddens = _env_layers("TEAM_SIAMESE_SELF_HIDDENS", (64, 64))
+    team_siamese_env_hiddens = _env_layers("TEAM_SIAMESE_ENV_HIDDENS", (192, 128))
+    team_siamese_self_slice_dim = _env_int("TEAM_SIAMESE_SELF_SLICE_DIM", 0)
+    # 083 per-ray attention encoder (snapshot-083, DIR ③): replaces the per-agent
+    # MLP encoder with a shared ray embedding + Transformer-style self-attention
+    # over the 14 ray tokens (Option A with per-ray temporal collapse).
+    team_siamese_per_ray_attn = _env_bool("TEAM_SIAMESE_PER_RAY_ATTN", False)
+    team_per_ray_n_rays = _env_int("TEAM_PER_RAY_N_RAYS", 14)
+    team_per_ray_feat_dim = _env_int("TEAM_PER_RAY_FEAT_DIM", 24)
+    team_per_ray_embed_dim = _env_int("TEAM_PER_RAY_EMBED_DIM", 64)
+    team_per_ray_attn_layers = _env_int("TEAM_PER_RAY_ATTN_LAYERS", 2)
+    team_per_ray_attn_heads = _env_int("TEAM_PER_RAY_ATTN_HEADS", 4)
+    team_per_ray_ffn_hidden = _env_int("TEAM_PER_RAY_FFN_HIDDEN", 128)
+    team_per_ray_pool = (
+        os.environ.get("TEAM_PER_RAY_POOL", "mean").strip().lower() or "mean"
+    )
     team_cross_attention = _env_bool("TEAM_CROSS_ATTENTION", False)
     team_cross_attention_tokens = _env_int("TEAM_CROSS_ATTENTION_TOKENS", 4)
     team_cross_attention_dim = _env_int("TEAM_CROSS_ATTENTION_DIM", 64)
     team_cross_attention_heads = _env_int("TEAM_CROSS_ATTENTION_HEADS", 4)
+    # 102 (DIR-F): VDN-style decomposed critic on 031B Siamese + cross-attention.
+    # Joint V = V_0(s_0) + V_1(s_1) + bias, each per-agent V only sees that
+    # agent's encoder feature (no cross-attn). Actor still uses merged feature.
+    team_siamese_vdn = _env_bool("TEAM_SIAMESE_VDN", False)
     team_transformer = _env_bool("TEAM_TRANSFORMER", False)
     team_transformer_min = _env_bool("TEAM_TRANSFORMER_MIN", False)
     team_cross_agent_attn = _env_bool("TEAM_CROSS_AGENT_ATTN", False)
@@ -734,6 +770,27 @@ def main():
     if team_cross_attention and not team_siamese_encoder:
         raise ValueError(
             "TEAM_CROSS_ATTENTION=1 requires TEAM_SIAMESE_ENCODER=1."
+        )
+    if team_siamese_two_stream and not team_siamese_encoder:
+        raise ValueError("TEAM_SIAMESE_TWO_STREAM=1 requires TEAM_SIAMESE_ENCODER=1.")
+    if team_siamese_two_stream and not team_cross_attention:
+        raise ValueError(
+            "TEAM_SIAMESE_TWO_STREAM=1 requires TEAM_CROSS_ATTENTION=1 "
+            "(hierarchical encoder is built on top of the 031B attention path)."
+        )
+    if team_siamese_per_ray_attn and not team_siamese_encoder:
+        raise ValueError(
+            "TEAM_SIAMESE_PER_RAY_ATTN=1 requires TEAM_SIAMESE_ENCODER=1."
+        )
+    if team_siamese_per_ray_attn and not team_cross_attention:
+        raise ValueError(
+            "TEAM_SIAMESE_PER_RAY_ATTN=1 requires TEAM_CROSS_ATTENTION=1 "
+            "(per-ray encoder feeds the 031B cross-attention pipeline)."
+        )
+    if team_siamese_per_ray_attn and team_siamese_two_stream:
+        raise ValueError(
+            "TEAM_SIAMESE_PER_RAY_ATTN and TEAM_SIAMESE_TWO_STREAM are mutually "
+            "exclusive — both replace the per-agent encoder."
         )
     transformer_variant_count = int(team_transformer) + int(team_transformer_min) + int(team_transformer_mha)
     if transformer_variant_count > 1:
@@ -867,6 +924,9 @@ def main():
     register_team_siamese_cross_agent_attn_medium_model()
     register_team_siamese_distill_model()
     register_team_siamese_ensemble_distill_model()
+    register_team_siamese_two_stream_model()
+    register_team_siamese_per_ray_model()
+    register_team_siamese_vdn_model()
     register_team_action_aux_model()
 
     custom_model_name = None
@@ -964,6 +1024,50 @@ def main():
                 "attention_head_dim": team_cross_attention_dim,
                 "cross_agent_attn_dim": team_cross_agent_attn_dim,
             }
+        elif team_siamese_per_ray_attn:
+            # 083 (DIR ③): per-ray self-attention encoder; replaces per-agent MLP
+            # with shared ray embedding + Transformer self-attn over 14 ray tokens,
+            # then feeds 031B cross-attention + merge unchanged.
+            custom_model_name = TEAM_SIAMESE_PER_RAY_ATTN_MODEL_NAME
+            model_config["custom_model"] = custom_model_name
+            model_config["custom_model_config"] = {
+                "encoder_hiddens": team_siamese_encoder_hiddens,
+                "merge_hiddens": team_siamese_merge_hiddens,
+                "attention_n_tokens": team_cross_attention_tokens,
+                "attention_head_dim": team_cross_attention_dim,
+                "per_ray_n_rays": team_per_ray_n_rays,
+                "per_ray_feat_dim": team_per_ray_feat_dim,
+                "per_ray_embed_dim": team_per_ray_embed_dim,
+                "per_ray_attn_layers": team_per_ray_attn_layers,
+                "per_ray_attn_heads": team_per_ray_attn_heads,
+                "per_ray_ffn_hidden": team_per_ray_ffn_hidden,
+                "per_ray_pool": team_per_ray_pool,
+            }
+        elif team_siamese_two_stream:
+            # 082: hierarchical self-stream + env-stream encoder, reusing 031B
+            # attention + merge topology on the cat(self_feat, env_feat) per agent.
+            custom_model_name = TEAM_SIAMESE_TWO_STREAM_MODEL_NAME
+            model_config["custom_model"] = custom_model_name
+            two_stream_cfg = {
+                "merge_hiddens": team_siamese_merge_hiddens,
+                "self_hiddens": team_siamese_self_hiddens,
+                "env_hiddens": team_siamese_env_hiddens,
+                "attention_n_tokens": team_cross_attention_tokens,
+                "attention_head_dim": team_cross_attention_dim,
+            }
+            if team_siamese_self_slice_dim > 0:
+                two_stream_cfg["self_slice_dim"] = team_siamese_self_slice_dim
+            model_config["custom_model_config"] = two_stream_cfg
+        elif team_siamese_vdn:
+            # 102 (DIR-F): 031B + VDN-style decomposed critic. Joint V = V_0(s_0) + V_1(s_1) + bias.
+            custom_model_name = TEAM_SIAMESE_VDN_MODEL_NAME
+            model_config["custom_model"] = custom_model_name
+            model_config["custom_model_config"] = {
+                "encoder_hiddens": team_siamese_encoder_hiddens,
+                "merge_hiddens": team_siamese_merge_hiddens,
+                "attention_n_tokens": team_cross_attention_tokens,
+                "attention_head_dim": team_cross_attention_dim,
+            }
         elif team_cross_attention:
             custom_model_name = TEAM_SIAMESE_CROSS_ATTENTION_MODEL_NAME
             model_config["custom_model"] = custom_model_name
@@ -1009,6 +1113,12 @@ def main():
         "base_port": base_port,
         "reward_shaping": reward_shaping,
     }
+    # 103-series sub-task scenarios (Stone DIR-A Wave 3 / SPL 2024 sub-behavior)
+    # SCENARIO_RESET={attack_expert,defense_expert,interceptor_subtask,defender_subtask,dribble_subtask}
+    scenario_reset = os.environ.get("SCENARIO_RESET", "").strip()
+    if scenario_reset:
+        env_config["scenario_reset"] = scenario_reset
+        _console_print(f"[snapshot-103] SCENARIO_RESET={scenario_reset!r} active — env will reset to scenario-specific initial state each episode.")
     if team_opponent_checkpoint:
         env_config["team_opponent_checkpoint"] = team_opponent_checkpoint
         _console_print(

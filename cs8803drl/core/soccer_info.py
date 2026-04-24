@@ -644,6 +644,11 @@ def compute_event_shaping(
     clearance_from_x: float = -8.0,
     clearance_to_x: float = -4.0,
     last_trigger_steps: Optional[Dict[str, int]] = None,
+    # Stone Layered Phase 2 (snapshot-107) — pass-decision specialist
+    possessing_agent: Optional[int] = None,
+    prev_possessing_agent: Optional[int] = None,
+    event_pass_reward: float = 0.0,
+    pass_min_ball_speed: float = 1.0,
 ) -> Tuple[Dict[int, float], Dict[str, Any], Dict[str, int]]:
     add: Dict[int, float] = {}
     debug: Dict[str, Any] = {
@@ -653,6 +658,8 @@ def compute_event_shaping(
         "event_tackle_team1": False,
         "event_clearance_team0": False,
         "event_clearance_team1": False,
+        "event_pass_team0": False,
+        "event_pass_team1": False,
     }
     updated_triggers: Dict[str, int] = {}
 
@@ -699,6 +706,26 @@ def compute_event_shaping(
             _trigger_team("event_clearance", 0, float(event_clearance_reward))
         if float(prev_ball_x) > team1_from and float(ball_x) < team1_to:
             _trigger_team("event_clearance", 1, float(event_clearance_reward))
+
+    # Stone Layered Phase 2 (snapshot-107): pass detection.
+    # Pass = closest-agent (closest_agent_id) transitions WITHIN same team AND ball moved.
+    # Why use closest_agent (not strict possession): possession changes during pass-in-flight
+    # would otherwise miss the event. closest_agent flip + ball velocity > threshold = passing motion.
+    if (
+        event_pass_reward != 0.0
+        and possessing_agent is not None
+        and prev_possessing_agent is not None
+        and int(possessing_agent) != int(prev_possessing_agent)
+        and ball_dx is not None
+        and abs(float(ball_dx)) >= float(pass_min_ball_speed)
+    ):
+        prev_in_team0 = int(prev_possessing_agent) in TEAM0_AGENT_IDS
+        curr_in_team0 = int(possessing_agent) in TEAM0_AGENT_IDS
+        if prev_in_team0 and curr_in_team0:
+            _trigger_team("event_pass", 0, float(event_pass_reward))
+        elif (not prev_in_team0) and (not curr_in_team0):
+            _trigger_team("event_pass", 1, float(event_pass_reward))
+        # cross-team transition is a tackle (already handled above), not a pass
 
     return add, debug, updated_triggers
 
