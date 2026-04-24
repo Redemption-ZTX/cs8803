@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Architecture</title>
+<style>
+  @page { size: 5.5in 2.1in; margin: 0 }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    color: #0F172A;
+    -webkit-font-smoothing: antialiased;
+    background: white;
+    font-feature-settings: "ss01", "cv11";
+  }
+  .wrap { padding: 2px; width: 528px; }
+  .caption-top {
+    font-size: 10.5px;
+    color: #64748B;
+    font-style: italic;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+  .caption-top b { font-style: normal; font-weight: 700; color: #0F172A; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="caption-top">
+    Team-level Siamese encoder &nbsp;+&nbsp; cross-agent attention &nbsp;·&nbsp; <b>~0.46 M parameters</b> &nbsp;·&nbsp; value head shares encoder
+  </div>
+
+  <svg width="524" height="170" viewBox="0 0 524 170" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arr_head" viewBox="0 0 10 10" refX="9" refY="5"
+              markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+      </marker>
+    </defs>
+
+    <!-- obs0 / obs1 (neutral grey) -->
+    <rect x="4"  y="16" width="60" height="40" rx="5" ry="5" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.1"/>
+    <text x="34" y="34" text-anchor="middle" font-size="11" font-weight="700" fill="#0F172A"
+          font-family="'JetBrains Mono', ui-monospace, monospace">obs₀</text>
+    <text x="34" y="48" text-anchor="middle" font-size="8.5" fill="#64748B" font-style="italic">ℝ^336</text>
+    <rect x="4"  y="114" width="60" height="40" rx="5" ry="5" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.1"/>
+    <text x="34" y="132" text-anchor="middle" font-size="11" font-weight="700" fill="#0F172A"
+          font-family="'JetBrains Mono', ui-monospace, monospace">obs₁</text>
+    <text x="34" y="146" text-anchor="middle" font-size="8.5" fill="#64748B" font-style="italic">ℝ^336</text>
+
+    <!-- Siamese MLP (teacher blue) -->
+    <rect x="92" y="12" width="82" height="48" rx="5" ry="5" fill="#F0F7FA" stroke="#1F6A85" stroke-width="1.2"/>
+    <text x="133" y="32" text-anchor="middle" font-size="11" font-weight="700" fill="#0F4352">Siamese MLP</text>
+    <text x="133" y="48" text-anchor="middle" font-size="9" fill="#1F6A85"
+          font-family="'JetBrains Mono', ui-monospace, monospace">256 → 256</text>
+
+    <rect x="92" y="110" width="82" height="48" rx="5" ry="5" fill="#F0F7FA" stroke="#1F6A85" stroke-width="1.2"/>
+    <text x="133" y="130" text-anchor="middle" font-size="11" font-weight="700" fill="#0F4352">Siamese MLP</text>
+    <text x="133" y="146" text-anchor="middle" font-size="9" fill="#1F6A85"
+          font-family="'JetBrains Mono', ui-monospace, monospace">256 → 256</text>
+
+    <line x1="133" y1="64" x2="133" y2="106" stroke="#94A3B8" stroke-width="0.9" stroke-dasharray="2.5,2.5"/>
+    <text x="141" y="88" font-size="8" fill="#64748B" font-style="italic">weights tied</text>
+
+    <!-- Cross-agent attention (coral) -->
+    <rect x="210" y="61" width="96" height="46" rx="5" ry="5" fill="#FBF0EA" stroke="#D08770" stroke-width="1.2"/>
+    <text x="258" y="81" text-anchor="middle" font-size="11" font-weight="700" fill="#8A4E3E">Cross-agent</text>
+    <text x="258" y="96" text-anchor="middle" font-size="9.5" fill="#8A4E3E"
+          font-family="'JetBrains Mono', ui-monospace, monospace">attention · 4×64</text>
+
+    <!-- Merge (coral) -->
+    <rect x="322" y="61" width="92" height="46" rx="5" ry="5" fill="#FBF0EA" stroke="#D08770" stroke-width="1.2"/>
+    <text x="368" y="81" text-anchor="middle" font-size="11" font-weight="700" fill="#8A4E3E">Merge</text>
+    <text x="368" y="96" text-anchor="middle" font-size="9.5" fill="#8A4E3E"
+          font-family="'JetBrains Mono', ui-monospace, monospace">512→256→128</text>
+
+    <!-- Policy head (red) -->
+    <rect x="430" y="12" width="94" height="48" rx="5" ry="5" fill="#FDEBEE" stroke="#BF616A" stroke-width="1.4"/>
+    <text x="477" y="32" text-anchor="middle" font-size="11" font-weight="700" fill="#8F4549">Policy head</text>
+    <text x="477" y="48" text-anchor="middle" font-size="9" fill="#8F4549" font-style="italic"
+          font-family="'JetBrains Mono', ui-monospace, monospace">[3,3,3]² logits</text>
+
+    <!-- Value head (student blue) -->
+    <rect x="430" y="110" width="94" height="48" rx="5" ry="5" fill="#F5F8FC" stroke="#5E81AC" stroke-width="1.4"/>
+    <text x="477" y="130" text-anchor="middle" font-size="11" font-weight="700" fill="#3B5A80">Value head</text>
+    <text x="477" y="146" text-anchor="middle" font-size="9" fill="#3B5A80" font-style="italic"
+          font-family="'JetBrains Mono', ui-monospace, monospace">V(s) ∈ ℝ</text>
+
+    <!-- Arrows -->
+    <g stroke="#334155" stroke-width="1.1" fill="none">
+      <line x1="66"  y1="36"  x2="90"  y2="36"  marker-end="url(#arr_head)"/>
+      <line x1="66"  y1="134" x2="90"  y2="134" marker-end="url(#arr_head)"/>
+      <line x1="176" y1="36"  x2="210" y2="76"  marker-end="url(#arr_head)"/>
+      <line x1="176" y1="134" x2="210" y2="92"  marker-end="url(#arr_head)"/>
+      <line x1="308" y1="84"  x2="320" y2="84"  marker-end="url(#arr_head)"/>
+      <line x1="414" y1="75"  x2="428" y2="36"  marker-end="url(#arr_head)"/>
+      <line x1="414" y1="93"  x2="428" y2="134" marker-end="url(#arr_head)"/>
+    </g>
+  </svg>
+</div>
+</body>
+</html>

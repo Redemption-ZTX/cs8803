@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pipeline</title>
+<style>
+  /* Render natively at the CoRL text column width (5.5in) so that
+     LaTeX \includegraphics[width=\linewidth] includes at 1:1 and all
+     font sizes translate directly to print points. */
+  @page { size: 5.5in 5.5in; margin: 0 }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: 'Inter', 'Helvetica Neue', 'Arial', sans-serif;
+    color: #0F172A;
+    -webkit-font-smoothing: antialiased;
+    background: white;
+    font-feature-settings: "ss01", "cv11";
+    font-variant-numeric: tabular-nums;
+  }
+  .wrap {
+    padding: 2px 2px;
+    width: 528px;      /* 5.5in @ 96dpi */
+  }
+
+  :root {
+    --blue-deep:   #1F6A85;
+    --blue-mid:    #5E81AC;
+    --blue-s-bg:   #F5F8FC;
+    --coral:       #D08770;
+    --coral-deep:  #8A4E3E;
+    --coral-bg:    #FBF0EA;
+    --red:         #BF616A;
+    --red-deep:    #7F3338;
+    --red-bg:      #FDEBEE;
+    --amber:       #C07A3E;
+    --amber-deep:  #7A4820;
+    --amber-bg:    #FCF3E6;
+    --purple:      #7C4E82;
+    --purple-bg:   #F3EAF6;
+    --green:       #5B8A66;
+    --green-bg:    #EAF2EC;
+    --grey-line:   #cbd5e1;
+    --grey-text:   #64748B;
+    --grey-strong: #334155;
+    --body:        #0F172A;
+  }
+
+  .panel-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--grey-strong);
+    margin-bottom: 6px;
+  }
+  .panel-label b {
+    color: var(--body);
+    font-weight: 900;
+    font-size: 12.5px;
+    margin-right: 6px;
+  }
+  .panel-sub {
+    color: var(--grey-text);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    font-size: 10px;
+  }
+
+  /* ============ Panel (a) ============ */
+  .provenance {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+    padding-bottom: 9px;
+    border-bottom: 1px dashed var(--grey-line);
+    margin-bottom: 10px;
+  }
+  .tcard {
+    border: 1px solid var(--grey-line);
+    border-left-width: 3px;
+    border-radius: 4px;
+    padding: 5px 6px 6px 7px;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .tcard.c-031b { border-left-color: var(--blue-deep); }
+  .tcard.c-045a { border-left-color: var(--purple); }
+  .tcard.c-051a { border-left-color: var(--green); }
+  .tcard.c-056d { border-left-color: var(--amber); }
+
+  .tcard .head {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid var(--grey-line);
+  }
+  .tcard .mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 800;
+    font-size: 11.5px;
+    color: var(--blue-deep);
+  }
+  .tcard.c-045a .mono { color: var(--purple); }
+  .tcard.c-051a .mono { color: var(--green); }
+  .tcard.c-056d .mono { color: var(--amber-deep); }
+  .tcard .wr { font-weight: 800; font-size: 10.5px; color: var(--body); }
+
+  .tcard .recipe { font-size: 9px; color: #334155; line-height: 1.35; }
+  .tcard .step { display: flex; gap: 4px; align-items: baseline; }
+  .tcard .step .k {
+    color: var(--grey-strong);
+    font-weight: 700;
+    font-size: 8px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    min-width: 36px;
+    flex-shrink: 0;
+  }
+  .tcard .step .v { flex: 1; }
+  .tcard .step .v code {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 8.5px;
+    color: var(--body);
+    font-weight: 700;
+  }
+
+  .accent {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 2px;
+    font-size: 8.5px;
+    font-weight: 700;
+  }
+  .accent.purple { background: var(--purple-bg); color: var(--purple); }
+  .accent.green  { background: var(--green-bg);  color: var(--green); }
+  .accent.amber  { background: var(--amber-bg);  color: var(--amber-deep); }
+
+  /* ============ Panel (b) ============ */
+  .pipe { display: flex; align-items: stretch; gap: 0; }
+  .stage {
+    flex: 1;
+    display: flex; flex-direction: column;
+    padding: 8px 7px 7px 7px;
+    background: white;
+    border: 1px solid var(--grey-line);
+    border-radius: 5px;
+    position: relative;
+  }
+  .stage.s3 { flex: 0.62; }
+
+  .stage-hdr {
+    margin: -8px -7px 6px -7px;
+    padding: 5px 4px;
+    font-size: 8.5px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-align: center;
+    border-radius: 4px 4px 0 0;
+    line-height: 1.3;
+  }
+  .stage-hdr .sh-num {
+    display: block;
+    font-size: 8.5px;
+    letter-spacing: 0.18em;
+  }
+  .stage-hdr .sh-title {
+    display: block;
+    font-size: 8.5px;
+    letter-spacing: 0.08em;
+    margin-top: 1px;
+  }
+  .s1 .stage-hdr { background: #E0F2F8; border-bottom: 1px solid #A3C8D6; color: #0F4352; }
+  .s2 .stage-hdr { background: #FDEFDC; border-bottom: 1px solid #E1BD91; color: var(--amber-deep); }
+  .s3 .stage-hdr { background: #FDE3E6; border-bottom: 1px solid #E2A7AE; color: var(--red-deep); }
+
+  .subtitle {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--grey-text);
+    margin: 3px 0 5px 0;
+  }
+
+  .teachers { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; margin-bottom: 6px; }
+  .pill {
+    display: inline-flex; flex-direction: column; align-items: center;
+    justify-content: center;
+    padding: 4px 5px;
+    border: 1px solid;
+    border-radius: 3px;
+    background: white;
+    width: 48px; height: 36px;
+    line-height: 1.1;
+  }
+  .pill .name {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 700; font-size: 9.5px;
+    letter-spacing: 0.01em;
+  }
+  .pill .ck {
+    font-size: 7.2px;
+    color: var(--grey-text);
+    margin-top: 1px;
+  }
+  .pill.base { border-color: var(--blue-deep); }
+  .pill.base .name { color: #0F4352; }
+  .pill.recycled {
+    border-color: var(--blue-mid);
+    border-style: dashed;
+    background: var(--blue-s-bg);
+  }
+  .pill.recycled .name { color: #3B5A80; }
+  .pill.new {
+    border-color: var(--amber);
+    background: var(--amber-bg);
+  }
+  .pill.new .name { color: var(--amber-deep); }
+
+  .agg {
+    align-self: center;
+    padding: 4px 9px;
+    border: 1px solid var(--coral);
+    background: var(--coral-bg);
+    border-radius: 3px;
+    margin: 2px 0;
+    text-align: center;
+    font-size: 8.5px;
+    color: var(--coral-deep);
+    line-height: 1.25;
+  }
+  .agg .agg-name {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 800;
+    color: #9E4E33;
+    font-size: 9.5px;
+  }
+  .agg .agg-desc { color: var(--coral-deep); font-size: 8px; }
+  .agg .agg-wr  { font-weight: 700; color: #9E4E33; }
+
+  .edge-label {
+    text-align: center;
+    margin: 3px 0;
+    font-size: 8.5px;
+    color: var(--red);
+    font-weight: 700;
+    line-height: 1.25;
+  }
+  .edge-label .math {
+    display: block;
+    font-size: 7.5px;
+    color: var(--red-deep);
+    font-weight: 500;
+  }
+
+  .down {
+    width: 0; height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid var(--red);
+    align-self: center;
+    margin: 1px 0;
+  }
+  .down.sub {
+    border-top-color: var(--grey-line);
+    border-width: 3px;
+    border-left-width: 3px; border-right-width: 3px;
+  }
+
+  .out {
+    margin-top: auto;
+    padding: 6px 7px;
+    border-radius: 4px;
+    border: 1.3px solid var(--blue-mid);
+    background: var(--blue-s-bg);
+    text-align: center;
+    min-height: 72px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .out .kicker {
+    font-size: 7px; font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--blue-mid);
+    margin-bottom: 3px;
+  }
+  .out .name {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-weight: 800; font-size: 11.5px;
+    color: #3B5A80;
+    line-height: 1.1;
+  }
+  .out .ck { font-size: 8px; color: var(--grey-text); margin-top: 2px; }
+  .out .wr {
+    font-weight: 800; font-size: 11px;
+    color: #3B5A80; margin-top: 4px;
+  }
+  .s3 .out { border-color: var(--red); background: var(--red-bg); }
+  .s3 .out .kicker, .s3 .out .name, .s3 .out .wr { color: #8F4549; }
+  .out .n { font-size: 7px; color: #94A3B8; margin-top: 2px; font-weight: 500; }
+
+  .iter-bar {
+    margin: 6px auto 3px auto;
+    width: 94%;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .iter-bar .caption {
+    font-size: 7px;
+    color: var(--grey-text);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .iter-bar .track {
+    width: 100%; height: 6px;
+    background: #F1F5F9;
+    border: 0.8px solid var(--grey-line);
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+  .iter-bar .track .prev {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 60.5%;
+    background: repeating-linear-gradient(
+      45deg, #cbd5e1, #cbd5e1 2px, transparent 2px, transparent 4px
+    );
+  }
+  .iter-bar .track .now {
+    position: absolute; left: 60.5%; top: 0; bottom: 0;
+    width: 39.5%;
+    background: var(--red);
+  }
+  .iter-bar .labels {
+    width: 100%;
+    display: flex; justify-content: space-between;
+    font-size: 7px;
+    color: var(--grey-text);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  .iter-bar .labels .start { color: #94A3B8; }
+  .iter-bar .labels .end { color: var(--red-deep); font-weight: 700; }
+
+  .carrier {
+    flex: 0 0 28px; position: relative;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .carrier-inner {
+    position: absolute; bottom: 36px; left: 0; right: 0;
+    height: 22px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .carrier-inner .lbl {
+    font-size: 8px;
+    color: var(--red);
+    font-weight: 700;
+    white-space: nowrap;
+    margin-bottom: 2px;
+  }
+  .carrier-inner .body {
+    position: relative; width: 100%; height: 0;
+    border-top: 1.5px solid var(--red);
+  }
+  .carrier-inner .body::after {
+    content: '';
+    position: absolute; right: -2px; top: -4px;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 6px solid var(--red);
+  }
+
+  .key {
+    margin-top: 8px;
+    display: flex;
+    gap: 9px;
+    padding-top: 7px;
+    border-top: 1px solid var(--grey-line);
+    font-size: 8px;
+    color: var(--grey-text);
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  .key .item { display: flex; align-items: center; gap: 5px; }
+  .key .swatch {
+    width: 13px; height: 10px;
+    border: 1.1px solid;
+    border-radius: 2px;
+  }
+  .key .swatch.teach    { background: white;         border-color: var(--blue-deep); }
+  .key .swatch.recycled { background: var(--blue-s-bg); border-color: var(--blue-mid); border-style: dashed; }
+  .key .swatch.new      { background: var(--amber-bg); border-color: var(--amber); }
+  .key .swatch.agg      { background: var(--coral-bg); border-color: var(--coral); }
+  .key .swatch.stu      { background: var(--blue-s-bg); border-color: var(--blue-mid); border-width: 1.2px; }
+  .key .swatch.final    { background: var(--red-bg); border-color: var(--red); border-width: 1.2px; }
+  .key .item b { color: var(--body); font-weight: 700; margin-right: 1px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<div class="panel-label">
+  <b>(a)</b> Teacher provenance
+  <span class="panel-sub">· four frozen teachers, each card highlights the unique ingredient</span>
+</div>
+
+<div class="provenance">
+  <div class="tcard c-031b">
+    <div class="head">
+      <span class="mono">031B @1220</span><span class="wr">0.880 WR</span>
+    </div>
+    <div class="recipe">
+      <div class="step"><span class="k">Start</span><span class="v">scratch · random init</span></div>
+      <div class="step"><span class="k">Reward</span><span class="v">v2 shaping only</span></div>
+      <div class="step"><span class="k">LR</span><span class="v"><code>1e−4</code></span></div>
+      <div class="step"><span class="k">Train</span><span class="v"><code>1220</code> iters</span></div>
+    </div>
+  </div>
+
+  <div class="tcard c-045a">
+    <div class="head">
+      <span class="mono">045A @180</span><span class="wr">0.887 WR</span>
+    </div>
+    <div class="recipe">
+      <div class="step"><span class="k">Start</span><span class="v">warm <code>031A@1040</code></span></div>
+      <div class="step"><span class="k">Add-on</span><span class="v"><span class="accent purple">+ learned W/L reward head</span></span></div>
+      <div class="step"><span class="k">Supvn</span><span class="v">184k episode labels</span></div>
+      <div class="step"><span class="k">Train</span><span class="v">+<code>180</code> iters</span></div>
+    </div>
+  </div>
+
+  <div class="tcard c-051a">
+    <div class="head">
+      <span class="mono">051A @130</span><span class="wr">0.888 WR</span>
+    </div>
+    <div class="recipe">
+      <div class="step"><span class="k">Start</span><span class="v">warm weak <code>031B</code></span></div>
+      <div class="step"><span class="k">Add-on</span><span class="v"><span class="accent green">+ PBRS predictor Φ(s)</span></span></div>
+      <div class="step"><span class="k">Supvn</span><span class="v">failure captures</span></div>
+      <div class="step"><span class="k">Train</span><span class="v">+<code>130</code> iters</span></div>
+    </div>
+  </div>
+
+  <div class="tcard c-056d">
+    <div class="head">
+      <span class="mono">056D @1140</span><span class="wr">0.891 WR</span>
+    </div>
+    <div class="recipe">
+      <div class="step"><span class="k">Start</span><span class="v">scratch · random init</span></div>
+      <div class="step"><span class="k">Reward</span><span class="v">v2 shaping only</span></div>
+      <div class="step"><span class="k">LR</span><span class="v"><span class="accent amber">3e−4 (3× baseline)</span></span></div>
+      <div class="step"><span class="k">Train</span><span class="v"><code>1140</code> iters</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel-label">
+  <b>(b)</b> 3-stage distillation &amp; late-extend pipeline
+  <span class="panel-sub">· how the four teachers combine into the submitted agent</span>
+</div>
+
+<div class="pipe">
+  <!-- STAGE 1 -->
+  <div class="stage s1">
+    <div class="stage-hdr">
+      <span class="sh-num">STAGE 1</span>
+      <span class="sh-title">3-TEACHER DISTILL</span>
+    </div>
+    <div class="subtitle">Teachers (frozen)</div>
+    <div class="teachers">
+      <div class="pill base"><span class="name">031B</span><span class="ck">@1220</span></div>
+      <div class="pill base"><span class="name">045A</span><span class="ck">@180</span></div>
+      <div class="pill base"><span class="name">051A</span><span class="ck">@130</span></div>
+    </div>
+    <div class="down sub"></div>
+    <div class="agg">
+      <span class="agg-name">034E</span><span class="agg-desc"> — factor-avg of 3 teachers</span><span class="agg-wr"> · 0.878 WR</span>
+    </div>
+    <div class="edge-label">
+      KL distillation
+      <span class="math">α: 0.05 → 0 · 8k updates</span>
+    </div>
+    <div class="down"></div>
+    <div class="out">
+      <div class="kicker">Stage 1 output</div>
+      <div class="name">Student 055</div>
+      <div class="ck">@1150</div>
+      <div class="wr">0.907 WR</div>
+    </div>
+  </div>
+
+  <div class="carrier"><div class="carrier-inner">
+    <div class="lbl">recycled ↪</div>
+    <div class="body"></div>
+  </div></div>
+
+  <!-- STAGE 2 -->
+  <div class="stage s2">
+    <div class="stage-hdr">
+      <span class="sh-num">STAGE 2</span>
+      <span class="sh-title">RECURSIVE POOL REFRESH</span>
+    </div>
+    <div class="subtitle">Teachers (5-model pool)</div>
+    <div class="teachers">
+      <div class="pill base"><span class="name">031B</span><span class="ck">@1220</span></div>
+      <div class="pill base"><span class="name">045A</span><span class="ck">@180</span></div>
+      <div class="pill base"><span class="name">051A</span><span class="ck">@130</span></div>
+      <div class="pill recycled"><span class="name">055</span><span class="ck">@1150</span></div>
+      <div class="pill new"><span class="name">056D</span><span class="ck">@1140</span></div>
+    </div>
+    <div class="down sub"></div>
+    <div class="agg">
+      <span class="agg-name">pool</span><span class="agg-desc"> — factor-avg of 5 teachers</span>
+    </div>
+    <div class="edge-label">
+      recursive KL distillation
+      <span class="math">α: 0.05 → 0 · LR 3e−4</span>
+    </div>
+    <div class="down"></div>
+    <div class="out">
+      <div class="kicker">Stage 2 output</div>
+      <div class="name">Student 055v2</div>
+      <div class="ck">@1210</div>
+      <div class="wr">0.909 WR</div>
+    </div>
+  </div>
+
+  <div class="carrier"><div class="carrier-inner">
+    <div class="lbl">extend</div>
+    <div class="body"></div>
+  </div></div>
+
+  <!-- STAGE 3 -->
+  <div class="stage s3">
+    <div class="stage-hdr">
+      <span class="sh-num">STAGE 3</span>
+      <span class="sh-title">LATE EXTEND</span>
+    </div>
+    <div class="subtitle">No teacher change</div>
+    <div style="font-size:7px; color:#475569; line-height:1.4; text-align:center; padding:3px 2px;">
+      Resume training<br>
+      of <b>Student 055v2</b>
+    </div>
+    <div class="iter-bar">
+      <div class="caption">iters</div>
+      <div class="track">
+        <div class="prev"></div>
+        <div class="now"></div>
+      </div>
+      <div class="labels">
+        <span class="start">0</span>
+        <span>1210</span>
+        <span class="end">2000</span>
+      </div>
+    </div>
+    <div class="down" style="margin-top:auto;"></div>
+    <div class="out">
+      <div class="kicker">Final agent</div>
+      <div class="name">Our agent</div>
+      <div class="ck">@1750</div>
+      <div class="wr">0.907 ± 0.004</div>
+      <div class="n">n = 9000 ep</div>
+    </div>
+  </div>
+</div>
+
+<div class="key">
+  <div class="item"><span class="swatch teach"></span><b>Base teacher</b></div>
+  <div class="item"><span class="swatch recycled"></span><b>Recycled teacher</b> (Gen-1 student)</div>
+  <div class="item"><span class="swatch new"></span><b>New teacher</b> (Stage 2)</div>
+  <div class="item"><span class="swatch agg"></span><b>Aggregation</b></div>
+  <div class="item"><span class="swatch stu"></span><b>Trained student</b></div>
+</div>
+
+</div>
+
+</body>
+</html>
