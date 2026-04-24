@@ -1,0 +1,81 @@
+#!/bin/bash
+# 102A: Stone DIR-F — VDN-style decomposed critic (Sunehag 2017) on 031B Siamese cross-attention.
+# Joint V_team(s) = V_0(s_0) + V_1(s_1) + bias, each per-agent V uses ONLY that agent's
+# encoder feature (no cross-attention) → forces explicit per-agent credit decomposition.
+# Actor (logits) still uses merged feature (centralized policy) — "centralized actor + decomposed critic".
+# Hypothesis: explicit credit decomposition improves PPO advantage signal in cooperative
+# 2v2 → potentially better sample efficiency or final performance vs monolithic critic.
+set -euo pipefail
+cd /home/hice1/wsun377/Desktop/cs8803drl
+
+LANE_TAG=102A_vdn_scratch
+SLURM_LOG_DIR=docs/experiments/artifacts/slurm-logs
+mkdir -p $SLURM_LOG_DIR
+RUNNING_FLAG=$SLURM_LOG_DIR/${LANE_TAG}.running
+DONE_FLAG=$SLURM_LOG_DIR/${LANE_TAG}.done
+rm -f $DONE_FLAG
+touch $RUNNING_FLAG
+cleanup() { local rc=$?; rm -f $RUNNING_FLAG; echo "EXIT_CODE=$rc at $(date)" > $DONE_FLAG; }
+trap cleanup EXIT
+export LOCAL_DIR=/storage/ice1/5/1/wsun377/ray_results_scratch
+PYTHON_BIN=/home/hice1/wsun377/.venvs/soccertwos_h100/bin/python
+
+export PYTHONPATH=$PWD${PYTHONPATH:+:$PYTHONPATH}
+export QUIET_CONSOLE=${QUIET_CONSOLE:-0}
+
+unset RESTORE_CHECKPOINT BC_WARMSTART_CHECKPOINT TEAMMATE_CHECKPOINT TEAMMATE_BASE_CHECKPOINT
+unset AUX_TEAM_ACTION_HEAD AUX_TEAM_ACTION_WEIGHT AUX_TEAM_ACTION_HIDDEN
+unset WARMSTART_CHECKPOINT TEAM_OPPONENT_CHECKPOINT
+unset LEARNED_REWARD_MODEL_PATH OUTCOME_PBRS_PREDICTOR_PATH
+unset TEAM_TRANSFORMER TEAM_TRANSFORMER_MIN TEAM_TRANSFORMER_MHA TEAM_CROSS_AGENT_ATTN
+unset TEAM_DISTILL_KL TEAM_DISTILL_TEACHER_CHECKPOINT TEAM_DISTILL_TEACHER_POLICY_ID
+unset TEAM_DISTILL_ENSEMBLE_KL TEAM_DISTILL_TEACHER_ENSEMBLE_CHECKPOINTS
+unset TEAM_DISTILL_ALPHA_INIT TEAM_DISTILL_ALPHA_FINAL TEAM_DISTILL_DECAY_UPDATES TEAM_DISTILL_TEMPERATURE
+unset TEAM_SIAMESE_TWO_STREAM TEAM_SIAMESE_PER_RAY_ATTN
+
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+
+PORT_SEED=${PORT_SEED:-102}
+PORT_OFFSET=$(( (PORT_SEED % 60) * 50 ))
+
+export RUN_NAME=102A_vdn_scratch_$(date +%Y%m%d_%H%M%S)
+export RAY_ADDRESS_OVERRIDE=local
+export RAY_SESSION_TMPDIR_OVERRIDE=/tmp/r102A_${PORT_SEED}
+export NUM_GPUS=1 NUM_WORKERS=8 NUM_ENVS_PER_WORKER=5
+export FCNET_HIDDENS=512,512
+
+# Architecture: 031B encoder + cross-attn (actor) + VDN decomposed critic
+export TEAM_SIAMESE_ENCODER=1 TEAM_SIAMESE_ENCODER_HIDDENS=256,256 TEAM_SIAMESE_MERGE_HIDDENS=256,128
+export TEAM_CROSS_ATTENTION=1 TEAM_CROSS_ATTENTION_TOKENS=4 TEAM_CROSS_ATTENTION_DIM=64
+export TEAM_SIAMESE_VDN=1
+
+export ROLLOUT_FRAGMENT_LENGTH=1000 TRAIN_BATCH_SIZE=40000 SGD_MINIBATCH_SIZE=2048 NUM_SGD_ITER=4
+export LR=0.0001 CLIP_PARAM=0.15
+export BASELINE_PROB=1.0
+
+# v2 reward shaping (same as 031B) — isolate VDN as the only architecture variable
+export USE_REWARD_SHAPING=1
+export SHAPING_FIELD_ROLE_BINDING=0
+export SHAPING_TIME_PENALTY=0.001 SHAPING_BALL_PROGRESS=0.01 SHAPING_OPP_PROGRESS_PENALTY=0.01
+export SHAPING_POSSESSION_BONUS=0.002 SHAPING_POSSESSION_DIST=1.25
+export SHAPING_PROGRESS_REQUIRES_POSSESSION=0
+export SHAPING_DEEP_ZONE_OUTER_THRESHOLD=-8 SHAPING_DEEP_ZONE_OUTER_PENALTY=0.003
+export SHAPING_DEEP_ZONE_INNER_THRESHOLD=-12 SHAPING_DEEP_ZONE_INNER_PENALTY=0.003
+export SHAPING_DEFENSIVE_SURVIVAL_THRESHOLD=0 SHAPING_DEFENSIVE_SURVIVAL_BONUS=0
+export SHAPING_FAST_LOSS_THRESHOLD_STEPS=0 SHAPING_FAST_LOSS_PENALTY_PER_STEP=0
+
+# Budget: matched to 031B (1250 iter scratch, 50M steps, ~12h)
+export TIMESTEPS_TOTAL=50000000 MAX_ITERATIONS=1250 TIME_TOTAL_S=43200 CHECKPOINT_FREQ=10
+
+export EVAL_INTERVAL=10 EVAL_EPISODES=200
+export EVAL_BASE_PORT=$((59005 + PORT_OFFSET))
+export EVAL_MAX_STEPS=1500
+export EVAL_OPPONENTS=baseline,random
+export EVAL_TEAM0_MODULE=cs8803drl.deployment.trained_team_ray_agent
+export EVAL_PYTHON_BIN=$PYTHON_BIN
+
+export BASE_PORT=$((59105 + PORT_OFFSET))
+export LOG_LEVEL=INFO LOG_SYS_USAGE=0
+
+LOG=docs/experiments/artifacts/slurm-logs/102A_vdn_scratch_train_$(date +%Y%m%d_%H%M%S).log
+$PYTHON_BIN -u -m cs8803drl.training.train_ray_team_vs_baseline_shaping 2>&1 | tee "$LOG"

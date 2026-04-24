@@ -1,0 +1,86 @@
+#!/bin/bash
+# 102A VDN — RESUME from ckpt-930 to finish 938 → 1250 (Option B after SIGTERM at 75%).
+# Original scratch lane was killed at iter 938/1250 by SLURM 8h wall boundary.
+# Needs only 320 more iters × ~30s/iter ≈ 2.5h, TIME_TOTAL_S=10800 conservative.
+set -euo pipefail
+cd /home/hice1/wsun377/Desktop/cs8803drl
+
+LANE_TAG=102A_vdn_restore
+SLURM_LOG_DIR=docs/experiments/artifacts/slurm-logs
+mkdir -p $SLURM_LOG_DIR
+RUNNING_FLAG=$SLURM_LOG_DIR/${LANE_TAG}.running
+DONE_FLAG=$SLURM_LOG_DIR/${LANE_TAG}.done
+rm -f $DONE_FLAG
+touch $RUNNING_FLAG
+cleanup() { local rc=$?; rm -f $RUNNING_FLAG; echo "EXIT_CODE=$rc at $(date)" > $DONE_FLAG; }
+trap cleanup EXIT
+export LOCAL_DIR=/storage/ice1/5/1/wsun377/ray_results_scratch
+PYTHON_BIN=/home/hice1/wsun377/.venvs/soccertwos_h100/bin/python
+
+export PYTHONPATH=$PWD${PYTHONPATH:+:$PYTHONPATH}
+export QUIET_CONSOLE=${QUIET_CONSOLE:-0}
+
+unset BC_WARMSTART_CHECKPOINT TEAMMATE_CHECKPOINT TEAMMATE_BASE_CHECKPOINT
+unset AUX_TEAM_ACTION_HEAD AUX_TEAM_ACTION_WEIGHT AUX_TEAM_ACTION_HIDDEN
+unset WARMSTART_CHECKPOINT TEAM_OPPONENT_CHECKPOINT
+unset LEARNED_REWARD_MODEL_PATH OUTCOME_PBRS_PREDICTOR_PATH
+unset TEAM_TRANSFORMER TEAM_TRANSFORMER_MIN TEAM_TRANSFORMER_MHA TEAM_CROSS_AGENT_ATTN
+unset TEAM_DISTILL_KL TEAM_DISTILL_TEACHER_CHECKPOINT TEAM_DISTILL_TEACHER_POLICY_ID
+unset TEAM_DISTILL_ENSEMBLE_KL TEAM_DISTILL_TEACHER_ENSEMBLE_CHECKPOINTS
+unset TEAM_DISTILL_ALPHA_INIT TEAM_DISTILL_ALPHA_FINAL TEAM_DISTILL_DECAY_UPDATES TEAM_DISTILL_TEMPERATURE
+unset TEAM_SIAMESE_TWO_STREAM TEAM_SIAMESE_PER_RAY_ATTN
+
+# RESTORE from last ckpt of original 102A scratch run
+export RESTORE_CHECKPOINT=/storage/ice1/5/1/wsun377/ray_results_scratch/102A_vdn_scratch_20260422_015846/TeamVsBaselineShapingPPOTrainer_Soccer_61200_00000_0_2026-04-22_01-59-09/checkpoint_000930/checkpoint-930
+
+export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
+
+PORT_SEED=${PORT_SEED:-132}  # shifted from 102 to avoid port collision with 102A v1 parallel-eval
+PORT_OFFSET=$(( (PORT_SEED % 60) * 50 ))
+
+export RUN_NAME=102A_vdn_restore_$(date +%Y%m%d_%H%M%S)
+export RAY_ADDRESS_OVERRIDE=local
+export RAY_SESSION_TMPDIR_OVERRIDE=/tmp/r102Ares_${PORT_SEED}
+export NUM_GPUS=1 NUM_WORKERS=8 NUM_ENVS_PER_WORKER=5
+export FCNET_HIDDENS=512,512
+
+# Same architecture as 102A v1 — MUST match restore checkpoint shape
+export TEAM_SIAMESE_ENCODER=1 TEAM_SIAMESE_ENCODER_HIDDENS=256,256 TEAM_SIAMESE_MERGE_HIDDENS=256,128
+export TEAM_CROSS_ATTENTION=1 TEAM_CROSS_ATTENTION_TOKENS=4 TEAM_CROSS_ATTENTION_DIM=64
+export TEAM_SIAMESE_VDN=1
+
+export ROLLOUT_FRAGMENT_LENGTH=1000 TRAIN_BATCH_SIZE=40000 SGD_MINIBATCH_SIZE=2048 NUM_SGD_ITER=4
+export LR=0.0001 CLIP_PARAM=0.15
+export BASELINE_PROB=1.0
+
+# Same v2 shaping as 102A v1
+export USE_REWARD_SHAPING=1
+export SHAPING_FIELD_ROLE_BINDING=0
+export SHAPING_TIME_PENALTY=0.001 SHAPING_BALL_PROGRESS=0.01 SHAPING_OPP_PROGRESS_PENALTY=0.01
+export SHAPING_POSSESSION_BONUS=0.002 SHAPING_POSSESSION_DIST=1.25
+export SHAPING_PROGRESS_REQUIRES_POSSESSION=0
+export SHAPING_DEEP_ZONE_OUTER_THRESHOLD=-8 SHAPING_DEEP_ZONE_OUTER_PENALTY=0.003
+export SHAPING_DEEP_ZONE_INNER_THRESHOLD=-12 SHAPING_DEEP_ZONE_INNER_PENALTY=0.003
+export SHAPING_DEFENSIVE_SURVIVAL_THRESHOLD=0 SHAPING_DEFENSIVE_SURVIVAL_BONUS=0
+export SHAPING_FAST_LOSS_THRESHOLD_STEPS=0 SHAPING_FAST_LOSS_PENALTY_PER_STEP=0
+
+# KEY FIX (2026-04-22 10:30): TIME_TOTAL_S=0 (disabled) for restore lanes.
+# Bug: Ray RLlib 1.4 `stop["time_total_s"]` compares against restored ckpt's `_time_total`
+# counter, which for ckpt-930 is ~28600s (8h elapsed when killed). If TIME_TOTAL_S < 28600,
+# Ray terminates the trial immediately after 1 iter. Setting TIME_TOTAL_S=0 disables the
+# time stop criterion entirely; MAX_ITERATIONS and TIMESTEPS_TOTAL still bound training.
+# External SLURM wall still enforces kill if host node wall hits — ~2.5h needed < any R node wall remaining.
+export TIMESTEPS_TOTAL=50000000 MAX_ITERATIONS=1250 TIME_TOTAL_S=0 CHECKPOINT_FREQ=10
+
+export EVAL_INTERVAL=10 EVAL_EPISODES=200
+export EVAL_BASE_PORT=$((59005 + PORT_OFFSET))
+export EVAL_MAX_STEPS=1500
+export EVAL_OPPONENTS=baseline,random
+export EVAL_TEAM0_MODULE=cs8803drl.deployment.trained_team_ray_agent
+export EVAL_PYTHON_BIN=$PYTHON_BIN
+
+export BASE_PORT=$((59105 + PORT_OFFSET))
+export LOG_LEVEL=INFO LOG_SYS_USAGE=0
+
+LOG=docs/experiments/artifacts/slurm-logs/102A_vdn_restore_train_$(date +%Y%m%d_%H%M%S).log
+$PYTHON_BIN -u -m cs8803drl.training.train_ray_team_vs_baseline_shaping 2>&1 | tee "$LOG"
