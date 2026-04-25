@@ -49,6 +49,8 @@ CS8803 深度强化学习课程 Final Project — 基于
 
 提交包: [`submission/CS8803DRL_AGENT/`](submission/CS8803DRL_AGENT/) &nbsp;·&nbsp; 报告编译说明: [`report/README.md`](report/README.md)
 
+完整训练产物备份（约 64 GB，3 个 tarball 含所有 `ray_results`、failure-cases、imitation、trajectories）：[Google Drive](https://drive.google.com/drive/folders/1uZyD3raAh4NoFKLpTxhQDxuWFTwrzHJ4?usp=sharing)
+
 ---
 
 ## 🛠 技术栈

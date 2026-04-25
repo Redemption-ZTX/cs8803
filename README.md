@@ -51,6 +51,8 @@ Baseline agent (CI `[0.899, 0.914]`).
 
 Submission package: [`submission/CS8803DRL_AGENT/`](submission/CS8803DRL_AGENT/) &nbsp;·&nbsp; report build instructions: [`report/README.md`](report/README.md)
 
+Full training-artifacts backup (≈64 GB, 3 tarballs containing all `ray_results`, failure-cases, imitation, and trajectories): [Google Drive](https://drive.google.com/drive/folders/1uZyD3raAh4NoFKLpTxhQDxuWFTwrzHJ4?usp=sharing)
+
 ---
 
 ## 🛠 Tech stack
